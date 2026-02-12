@@ -1,0 +1,10 @@
+name: MGA Theme
+type: theme
+description: 'Premium Custom Drupal Theme for MGA'
+package: Custom
+core_version_requirement: ^8.9 || ^9 || ^10 || ^11
+libraries:
+  - mga/global-styling
+base theme: false
+regions:
+  content: Content

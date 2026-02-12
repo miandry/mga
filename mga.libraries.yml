@@ -1,0 +1,6 @@
+global-styling:
+  js:
+    dist/assets/index.js: {}
+  css:
+    theme:
+      dist/assets/style.css: {}

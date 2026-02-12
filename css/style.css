@@ -1,0 +1,13 @@
+/* MGA Theme Styles */
+
+@layer base {
+  body {
+    @apply antialiased text-gray-900 bg-gray-50;
+  }
+}
+
+@layer components {
+  .region-header {
+    @apply sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100;
+  }
+}

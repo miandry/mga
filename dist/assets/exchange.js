@@ -1,0 +1,1 @@
+import{H as c,v as n}from"./index.js";const i=c("exchange",()=>{const e=n(.0015),o=n(new Date().toISOString()),r=t=>(t*e.value).toFixed(2),a=t=>(t/e.value).toFixed(0);function u(t){e.value=t,o.value=new Date().toISOString()}return{rateMGAtoCNY:e,lastUpdated:o,convertMGAtoCNY:r,convertCNYtoMGA:a,updateRate:u}});export{i as u};
