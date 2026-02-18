@@ -3,7 +3,10 @@
     <ion-header class="ion-no-border">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button :icon="chevronBackOutline"></ion-back-button>
+          <ion-button @click="router.back()">
+            <ion-icon slot="start" :icon="chevronBackOutline"></ion-icon>
+            Retour
+          </ion-button>
         </ion-buttons>
         <ion-title>Justificatifs</ion-title>
       </ion-toolbar>
@@ -14,6 +17,8 @@
         <div class="step">1</div>
         <div class="line active"></div>
         <div class="step active">2</div>
+        <div class="line"></div>
+        <div class="step">3</div>
       </div>
 
       <div class="summary-box">
@@ -21,51 +26,52 @@
           <span>Montant</span>
           <strong>{{ transferData.amountMGA?.toLocaleString() }} MGA</strong>
         </div>
-        <div class="summary-item">
-          <span>Bénéficiaire</span>
-          <strong>{{ transferData.beneficiaryName }}</strong>
-        </div>
       </div>
 
       <div class="upload-section">
-        <label class="input-label">1. Preuve du paiement (MGA)</label>
-        <p class="input-hint">Capture d'écran de votre transfert Mobile Money ou reçu bancaire.</p>
-        
-        <div v-if="!proofPayment" class="upload-box" @click="triggerUpload('payment')">
-          <ion-icon :icon="cameraOutline"></ion-icon>
-          <p>Prendre une photo ou choisir un fichier</p>
-        </div>
-        <div v-else class="preview-box">
-          <img :src="proofPayment" alt="Proof Payment" />
-          <div class="remove-btn" @click="proofPayment = null">
-            <ion-icon :icon="closeCircle"></ion-icon>
+        <div v-for="(proof, index) in paymentProofs" :key="index" class="proof-item-container">
+          <div class="proof-header">
+            <label class="input-label">{{ index + 1 }}. Justificatif de paiement (MGA)</label>
+            <ion-button fill="clear" color="danger" v-if="paymentProofs.length > 1" @click="removeProof(index)" class="remove-proof-btn">
+              <ion-icon slot="icon-only" :icon="trashOutline"></ion-icon>
+            </ion-button>
+          </div>
+          <p class="input-hint">Photos de votre transfert ou reçu bancaire.</p>
+          
+          <div v-if="!proof.preview" class="upload-box" @click="triggerUpload(index)">
+            <ion-icon :icon="cameraOutline"></ion-icon>
+            <p>Prendre une photo ou choisir un fichier</p>
+          </div>
+          <div v-else class="preview-box">
+            <img :src="proof.preview" :alt="proof.reference || 'Justificatif de paiement'" :title="proof.reference || 'Justificatif de paiement'" />
+            <div class="remove-btn" @click="clearProofImage(index)">
+              <ion-icon :icon="closeCircle"></ion-icon>
+            </div>
+          </div>
+
+          <div class="reference-input-container">
+            <ion-input 
+              placeholder="Référence de la transaction (Ex: MM2401...)" 
+              v-model="proof.reference"
+              class="ref-input"
+            ></ion-input>
           </div>
         </div>
 
-        <label class="input-label">2. Pièce d'identité</label>
-        <p class="input-hint">Passeport ou CIN du bénéficiaire ou de l'envoyeur.</p>
-        
-        <div v-if="!proofIdentity" class="upload-box" @click="triggerUpload('identity')">
-          <ion-icon :icon="imageOutline"></ion-icon>
-          <p>Choisir un document</p>
-        </div>
-        <div v-else class="preview-box">
-          <img :src="proofIdentity" alt="Proof Identity" />
-          <div class="remove-btn" @click="proofIdentity = null">
-            <ion-icon :icon="closeCircle"></ion-icon>
-          </div>
-        </div>
+        <ion-button fill="outline" expand="block" class="add-more-btn" @click="addProof">
+          <ion-icon slot="start" :icon="addOutline"></ion-icon>
+          Ajouter un autre justificatif
+        </ion-button>
 
-        <!-- Hidden Inputs for File selection -->
-        <input type="file" ref="paymentInput" style="display: none" accept="image/*" @change="handleFileChange($event, 'payment')" />
-        <input type="file" ref="identityInput" style="display: none" accept="image/*" @change="handleFileChange($event, 'identity')" />
+        <!-- Hidden Input for File selection -->
+        <input type="file" ref="paymentInput" style="display: none" accept="image/*" @change="handleFileChange" />
       </div>
 
       <div class="instructions">
         <h3>Instructions importantes :</h3>
         <ul>
           <li>Assurez-vous que les textes sont lisibles.</li>
-          <li>Format autorisé : JPG, PNG, PDF (max 5MB).</li>
+          <li>La référence doit correspondre exactement au reçu.</li>
           <li>La validation par nos agents prendra entre 10 et 30 minutes.</li>
         </ul>
       </div>
@@ -73,85 +79,118 @@
 
     <ion-footer class="ion-no-border">
       <ion-toolbar class="footer-toolbar">
-        <ion-button expand="block" class="finish-btn" @click="handleFinish" :disabled="!isReady">
-          Valider le transfert
-          <ion-icon slot="end" :icon="checkmarkCircleOutline"></ion-icon>
+        <ion-button expand="block" class="finish-btn" @click="handleContinue" :disabled="!isReady || isLoading">
+          <ion-spinner v-if="isLoading" name="crescent"></ion-spinner>
+          <span v-else>Suivant</span>
+          <ion-icon v-if="!isLoading" slot="end" :icon="arrowForwardOutline"></ion-icon>
         </ion-button>
       </ion-toolbar>
     </ion-footer>
-
-    <ion-loading :is-open="isLoading" message="Traitement en cours..."></ion-loading>
   </ion-page>
 </template>
 
 <script setup lang="ts">
 import { 
   IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, 
-  IonContent, IonIcon, IonFooter, IonButton, IonLoading, loadingController 
+  IonContent, IonIcon, IonFooter, IonButton, IonSpinner
 } from '@ionic/vue';
 import { 
-  chevronBackOutline, cameraOutline, imageOutline, 
-  closeCircle, checkmarkCircleOutline 
+  chevronBackOutline, cameraOutline, arrowForwardOutline,
+  closeCircle, addOutline, trashOutline
 } from 'ionicons/icons';
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useTransactionStore } from '@/stores/transactions';
+import { useAuthStore } from '@/stores/auth';
+import { useExchangeStore } from '@/stores/exchange';
+import { API_BASE_URL } from '@/services/api';
 
 const router = useRouter();
 const route = useRoute();
-const transactionStore = useTransactionStore();
+const authStore = useAuthStore();
+const exchangeStore = useExchangeStore();
 
 const transferData = ref<any>({});
-const proofPayment = ref<string | null>(null);
-const proofIdentity = ref<string | null>(null);
+const paymentProofs = ref<{ preview: string | null, fid: number | null, reference: string }[]>([
+  { preview: null, fid: null, reference: '' }
+]);
+const currentActiveIndex = ref(0);
 const isLoading = ref(false);
 
 const paymentInput = ref<HTMLInputElement | null>(null);
-const identityInput = ref<HTMLInputElement | null>(null);
 
 onMounted(() => {
   transferData.value = route.query;
 });
 
-const triggerUpload = (type: 'payment' | 'identity') => {
-  if (type === 'payment') paymentInput.value?.click();
-  else identityInput.value?.click();
+const addProof = () => {
+  paymentProofs.value.push({ preview: null, fid: null, reference: '' });
 };
 
-const handleFileChange = (event: any, type: 'payment' | 'identity') => {
+const removeProof = (index: number) => {
+  paymentProofs.value.splice(index, 1);
+};
+
+const clearProofImage = (index: number) => {
+  paymentProofs.value[index].preview = null;
+  paymentProofs.value[index].fid = null;
+};
+
+const triggerUpload = (index: number) => {
+  currentActiveIndex.value = index;
+  paymentInput.value?.click();
+};
+
+const handleFileChange = async (event: any) => {
   const file = event.target.files[0];
-  if (file) {
+  const index = currentActiveIndex.value;
+  
+  if (file && paymentProofs.value[index]) {
+    // 1. Show preview locally
     const reader = new FileReader();
     reader.onload = (e) => {
-      if (type === 'payment') proofPayment.value = e.target?.result as string;
-      else proofIdentity.value = e.target?.result as string;
+      paymentProofs.value[index].preview = e.target?.result as string;
     };
     reader.readAsDataURL(file);
+
+    // 2. Upload to server
+    try {
+      isLoading.value = true;
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`${API_BASE_URL}/api_solutions/action/uploader`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+      if (data.status && data.fid) {
+        paymentProofs.value[index].fid = data.fid;
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+    } finally {
+      isLoading.value = false;
+      if (paymentInput.value) paymentInput.value.value = '';
+    }
   }
 };
 
-const isReady = computed(() => proofPayment.value && proofIdentity.value);
+const isReady = computed(() => {
+  // Make upload not required as per user request
+  return true;
+});
 
-const handleFinish = async () => {
-  isLoading.value = true;
-  
-  // Simulate API delay
-  setTimeout(() => {
-    const newId = Math.random().toString(36).substr(2, 9).toUpperCase();
-    transactionStore.addTransaction({
-      id: newId,
-      amountMGA: parseFloat(transferData.value.amountMGA),
-      amountCNY: parseFloat(transferData.value.amountCNY),
-      method: transferData.value.method,
-      status: 'pending',
-      date: 'À l\'instant',
-      beneficiary: transferData.value.beneficiaryName,
-      proofUrl: proofPayment.value as string
-    });
-    
-    isLoading.value = false;
-    router.push('/transaction/' + newId);
-  }, 2000);
+const handleContinue = () => {
+  router.push({
+    path: '/transfer/qrcode',
+    query: {
+      ...transferData.value,
+      paymentProofs: JSON.stringify(paymentProofs.value.map(p => ({
+        fid: p.fid,
+        reference: p.reference
+      })))
+    }
+  });
 };
 </script>
 
@@ -224,6 +263,31 @@ ion-header ion-toolbar {
   color: #1e2a4a;
 }
 
+.proof-item-container {
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f4f9;
+}
+
+.proof-item-container:last-of-type {
+  border-bottom: none;
+  margin-bottom: 20px;
+}
+
+.proof-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.remove-proof-btn {
+  --padding-start: 4px;
+  --padding-end: 4px;
+  margin: 0;
+  height: 32px;
+}
+
 .input-label {
   display: block;
   font-size: 15px;
@@ -275,6 +339,22 @@ ion-header ion-toolbar {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.reference-input-container {
+  margin-top: -15px;
+  margin-bottom: 25px;
+  background: white;
+  border: 1px solid #edf1f7;
+  border-radius: 12px;
+  padding: 5px 15px;
+}
+
+.ref-input {
+  --padding-start: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e2a4a;
 }
 
 .remove-btn {

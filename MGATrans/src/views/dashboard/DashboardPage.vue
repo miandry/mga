@@ -4,6 +4,9 @@
       <!-- Header Section -->
       <div class="header-section">
         <div class="user-info">
+          <ion-buttons slot="start">
+            <ion-menu-button color="primary"></ion-menu-button>
+          </ion-buttons>
           <div class="avatar">JD</div>
           <div>
             <h3>Bonjour, {{ authStore.user?.name || 'Client' }}</h3>
@@ -78,7 +81,10 @@
 </template>
 
 <script setup lang="ts">
-import { IonPage, IonContent, IonButton, IonIcon } from '@ionic/vue';
+import { 
+  IonPage, IonContent, IonButton, IonIcon, 
+  IonButtons, IonMenuButton 
+} from '@ionic/vue';
 import { 
   notificationsOutline, 
   refreshOutline, 

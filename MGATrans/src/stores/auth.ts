@@ -4,6 +4,7 @@ import { API_BASE_URL } from '@/services/api';
 
 export const useAuthStore = defineStore('auth', () => {
     const user = ref<any | null>(null);
+    const token = ref<string | null>(null);
     const isAuthenticated = ref(false);
     const loading = ref(false);
     const error = ref<string | null>(null);
@@ -28,6 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
                 isAuthenticated.value = true;
                 localStorage.setItem('user', JSON.stringify(userData));
                 if (data.token) {
+                    token.value = data.token;
                     localStorage.setItem('token', data.token);
                 }
                 return true;
@@ -46,6 +48,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     function logout() {
         user.value = null;
+        token.value = null;
         isAuthenticated.value = false;
         localStorage.removeItem('user');
         localStorage.removeItem('token');
@@ -53,11 +56,15 @@ export const useAuthStore = defineStore('auth', () => {
 
     function init() {
         const savedUser = localStorage.getItem('user');
+        const savedToken = localStorage.getItem('token');
         if (savedUser) {
             user.value = JSON.parse(savedUser);
             isAuthenticated.value = true;
         }
+        if (savedToken) {
+            token.value = savedToken;
+        }
     }
 
-    return { user, isAuthenticated, loading, error, login, logout, init };
+    return { user, token, isAuthenticated, loading, error, login, logout, init };
 });

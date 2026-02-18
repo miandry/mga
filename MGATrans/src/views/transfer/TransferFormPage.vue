@@ -2,7 +2,7 @@
   <ion-page>
     <ion-header class="ion-no-border">
       <ion-toolbar>
-        <ion-buttons slot="start">
+        <ion-buttons v-if="!token" slot="start">
           <ion-back-button default-href="/dashboard" :icon="chevronBackOutline"></ion-back-button>
         </ion-buttons>
         <ion-title>Nouveau transfert</ion-title>
@@ -10,6 +10,11 @@
     </ion-header>
 
     <ion-content class="ion-padding">
+      <div v-if="!isValidToken" class="error-banner">
+        <ion-icon :icon="closeCircleOutline"></ion-icon>
+        <p>Lien invalide ou expiré. Veuillez demander un nouvel accès.</p>
+      </div>
+
       <div class="stepper">
         <div class="step active">1</div>
         <div class="line"></div>
@@ -17,23 +22,37 @@
       </div>
 
       <div class="form-section">
-        <label class="input-label">Montant à envoyer (MGA)</label>
+        <div class="currency-switch-container">
+          <ion-segment v-model="inputCurrency" @ion-change="handleCurrencyChange">
+            <ion-segment-button value="MGA">
+              <ion-label>Ariary (MGA)</ion-label>
+            </ion-segment-button>
+            <ion-segment-button value="CNY">
+              <ion-label>RMB (CNY)</ion-label>
+            </ion-segment-button>
+          </ion-segment>
+        </div>
+
+        <label class="input-label">Montant à envoyer ({{ inputCurrency }})</label>
         <div class="amount-container">
           <ion-input 
             type="number" 
-            placeholder="0" 
-            v-model="amountMGA" 
-            @ion-input="handleConvert"
+            :placeholder="inputCurrency === 'MGA' ? '0' : '0.00'" 
+            v-model="amountInput" 
+            @ion-input="handleInputChange"
             class="main-amount-input"
           ></ion-input>
-          <span class="currency">MGA</span>
+          <span class="currency">{{ inputCurrency }}</span>
         </div>
 
         <div class="conversion-banner">
           <ion-icon :icon="swapVerticalOutline"></ion-icon>
           <div class="conv-info">
-            <p>Le bénéficiaire recevra environ</p>
-            <h3>{{ amountCNY }} <span>CNY</span></h3>
+            <p v-if="inputCurrency === 'MGA'">Le bénéficiaire recevra environ</p>
+            <p v-else>Cela vous coûtera environ</p>
+            
+            <h3 v-if="inputCurrency === 'MGA'">{{ amountCNY }} <span>CNY</span></h3>
+            <h3 v-else>{{ amountMGA_Display }} <span>MGA</span></h3>
           </div>
         </div>
 
@@ -63,20 +82,11 @@
           </div>
         </div>
 
-        <label class="input-label">Informations du bénéficiaire</label>
-        <ion-list lines="none">
-          <ion-item class="custom-item">
-            <ion-input label-placement="stacked" label="Compte ou ID bénéficiaire" v-model="beneficiaryId" placeholder="ex: wxid_12345..."></ion-input>
-          </ion-item>
-          <ion-item class="custom-item">
-            <ion-input label-placement="stacked" label="Nom du bénéficiaire" v-model="beneficiaryName" placeholder="ex: Li Wei"></ion-input>
-          </ion-item>
-        </ion-list>
-      </div>
+        </div>
 
       <div class="info-note">
         <ion-icon :icon="informationCircleOutline"></ion-icon>
-        <p>Vérifiez bien les informations du bénéficiaire. Les transferts sont définitifs après validation.</p>
+        <p>Vérifiez bien le montant et le mode de réception. Les transferts sont définitifs après validation.</p>
       </div>
     </ion-content>
 
@@ -94,54 +104,119 @@
 <script setup lang="ts">
 import { 
   IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, 
-  IonContent, IonInput, IonList, IonItem, IonIcon, IonFooter, IonButton 
+  IonContent, IonInput, IonList, IonItem, IonIcon, IonFooter, IonButton,
+  IonSegment, IonSegmentButton, IonLabel
 } from '@ionic/vue';
 import { 
   chevronBackOutline, swapVerticalOutline, chatbubbleEllipsesOutline, 
-  cardOutline, informationCircleOutline, arrowForwardOutline 
+  cardOutline, informationCircleOutline, arrowForwardOutline,
+  closeCircleOutline
 } from 'ionicons/icons';
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useExchangeStore } from '@/stores/exchange';
+import { API_BASE_URL } from '@/services/api';
 
 const router = useRouter();
+const route = useRoute();
 const exchangeStore = useExchangeStore();
 
-const amountMGA = ref<number | null>(null);
+const amountInput = ref<number | null>(null);
+const inputCurrency = ref('MGA');
 const amountCNY = ref('0');
+const amountMGA_Display = ref('0');
 const method = ref('WeChat');
-const beneficiaryId = ref('');
-const beneficiaryName = ref('');
+const token = ref<string | null>(null);
+const isValidToken = ref(true);
 
-const handleConvert = (event: any) => {
-  const val = event.target.value;
-  if (val) {
-    amountCNY.value = exchangeStore.convertMGAtoCNY(parseFloat(val));
-  } else {
+onMounted(async () => {
+  token.value = route.query.token as string || null;
+  if (token.value) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/transfer?token=${token.value}`);
+      const data = await response.json();
+      if (data.status !== 'success') {
+        isValidToken.value = false;
+        console.error('Invalid token');
+      }
+    } catch (err) {
+      console.error('Token validation error:', err);
+    }
+  }
+  await exchangeStore.init();
+});
+
+const handleInputChange = (event: any) => {
+  const val = parseFloat(event.target.value);
+  if (!val) {
     amountCNY.value = '0';
+    amountMGA_Display.value = '0';
+    return;
+  }
+
+  if (inputCurrency.value === 'MGA') {
+    amountCNY.value = exchangeStore.convertMGAtoCNY(val);
+  } else {
+    amountMGA_Display.value = exchangeStore.convertCNYtoMGA(val);
   }
 };
 
+const handleCurrencyChange = () => {
+  // Clear input when switching for better UX
+  amountInput.value = null;
+  amountCNY.value = '0';
+  amountMGA_Display.value = '0';
+};
+
 const isValid = computed(() => {
-  return amountMGA.value && amountMGA.value > 0 && beneficiaryId.value && beneficiaryName.value;
+  return amountInput.value && amountInput.value > 0;
 });
 
 const handleContinue = () => {
-  // Pass data to next step via router state or store
+  let finalMGA, finalCNY;
+  
+  if (inputCurrency.value === 'MGA') {
+    finalMGA = amountInput.value;
+    finalCNY = amountCNY.value;
+  } else {
+    finalCNY = amountInput.value;
+    finalMGA = amountMGA_Display.value;
+  }
+
   router.push({
     path: '/transfer/upload',
     query: {
-      amountMGA: amountMGA.value,
-      amountCNY: amountCNY.value,
+      amountMGA: finalMGA,
+      amountCNY: finalCNY,
       method: method.value,
-      beneficiaryId: beneficiaryId.value,
-      beneficiaryName: beneficiaryName.value
+      token: token.value
     }
   });
 };
 </script>
 
 <style scoped>
+.error-banner {
+  background: #ffebee;
+  color: #c62828;
+  padding: 15px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.error-banner ion-icon {
+  font-size: 24px;
+  margin-right: 12px;
+}
+
+.error-banner p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 ion-header ion-toolbar {
   --background: white;
   --color: #1e2a4a;
@@ -178,6 +253,26 @@ ion-header ion-toolbar {
   height: 2px;
   background: #f4f5f8;
   margin: 0 -5px;
+}
+
+.currency-switch-container {
+  margin-bottom: 20px;
+}
+
+ion-segment {
+  background: #f4f5f8;
+  border-radius: 12px;
+  padding: 4px;
+}
+
+ion-segment-button {
+  --indicator-color: var(--ion-color-primary);
+  --color: #8892a0;
+  --color-checked: white;
+  --border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 40px;
 }
 
 .input-label {

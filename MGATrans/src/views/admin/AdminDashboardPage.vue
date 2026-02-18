@@ -2,6 +2,9 @@
   <ion-page>
     <ion-header class="ion-no-border">
       <ion-toolbar color="dark">
+        <ion-buttons slot="start">
+          <ion-menu-button></ion-menu-button>
+        </ion-buttons>
         <ion-title>Admin Dashboard</ion-title>
         <ion-buttons slot="end">
           <ion-button @click="authStore.logout(); router.push('/auth/login')">
@@ -30,7 +33,12 @@
 
       <div class="section-header">
         <h2>Transferts à valider</h2>
-        <ion-badge color="warning">{{ pendingTransactions.length }}</ion-badge>
+        <div class="header-actions">
+          <ion-button fill="clear" size="small" @click="router.push('/admin/generate-visitor')">
+            <ion-icon slot="icon-only" :icon="personAddOutline"></ion-icon>
+          </ion-button>
+          <ion-badge color="warning">{{ pendingTransactions.length }}</ion-badge>
+        </div>
       </div>
 
       <div class="admin-list">
@@ -103,11 +111,12 @@
 import { 
   IonPage, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, 
   IonIcon, IonContent, IonBadge, IonModal, IonList, IonItem, 
-  IonTextarea, IonLoading 
+  IonTextarea, IonLoading, IonMenuButton 
 } from '@ionic/vue';
 import { 
   logOutOutline, personCircleOutline, eyeOutline, 
-  shieldCheckmarkOutline, closeCircleOutline, checkmarkCircleOutline 
+  shieldCheckmarkOutline, closeCircleOutline, checkmarkCircleOutline,
+  personAddOutline
 } from 'ionicons/icons';
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -182,6 +191,16 @@ const handleReject = () => {
 }
 
 .section-header h2 { margin: 0 10px 0 0; font-size: 18px; font-weight: 700; color: #1e2a4a; }
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.header-actions ion-button {
+  margin-right: 5px;
+}
 
 .admin-list {
   background: white;

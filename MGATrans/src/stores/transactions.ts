@@ -6,11 +6,12 @@ export interface Transaction {
     amountMGA: number;
     amountCNY: number;
     method: 'WeChat' | 'Alipay';
-    status: 'pending' | 'validated' | 'rejected';
+    status: 'pending' | 'validated' | 'rejected' | 'draft';
     date: string;
     beneficiary: string;
     proofUrl?: string;
-    qrCodeUrl?: string;
+    qrCodeUrl?: string | string[];
+    reference?: string;
 }
 
 export const useTransactionStore = defineStore('transactions', () => {
