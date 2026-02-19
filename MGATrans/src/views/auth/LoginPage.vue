@@ -26,23 +26,13 @@
             <ion-list lines="none">
               <ion-item class="custom-input">
                 <ion-icon slot="start" :icon="personOutline"></ion-icon>
-                <ion-input 
-                  type="text" 
-                  label-placement="floating" 
-                  label="Nom d'utilisateur" 
-                  placeholder="votre nom"
-                  v-model="loginName"
-                ></ion-input>
+                <ion-input type="text" label-placement="floating" label="Nom d'utilisateur" placeholder="votre nom"
+                  v-model="loginName"></ion-input>
               </ion-item>
               <ion-item class="custom-input">
                 <ion-icon slot="start" :icon="lockClosedOutline"></ion-icon>
-                <ion-input 
-                  type="password" 
-                  label-placement="floating" 
-                  label="Mot de passe" 
-                  placeholder="••••••••"
-                  v-model="loginPassword"
-                ></ion-input>
+                <ion-input type="password" label-placement="floating" label="Mot de passe" placeholder="••••••••"
+                  v-model="loginPassword"></ion-input>
               </ion-item>
             </ion-list>
 
@@ -76,7 +66,8 @@
               </ion-item>
               <ion-item class="custom-input">
                 <ion-icon slot="start" :icon="lockClosedOutline"></ion-icon>
-                <ion-input type="password" label-placement="floating" label="Mot de passe" placeholder="••••••••"></ion-input>
+                <ion-input type="password" label-placement="floating" label="Mot de passe"
+                  placeholder="••••••••"></ion-input>
               </ion-item>
             </ion-list>
             <p class="tos-text">
@@ -93,24 +84,24 @@
 </template>
 
 <script setup lang="ts">
-import { 
-  IonPage, 
-  IonContent, 
-  IonInput, 
-  IonItem, 
-  IonList, 
-  IonButton, 
-  IonIcon, 
-  IonSegment, 
-  IonSegmentButton, 
+import {
+  IonPage,
+  IonContent,
+  IonInput,
+  IonItem,
+  IonList,
+  IonButton,
+  IonIcon,
+  IonSegment,
+  IonSegmentButton,
   IonLabel,
   IonSpinner
 } from '@ionic/vue';
-import { 
-  swapHorizontalOutline, 
-  mailOutline, 
-  lockClosedOutline, 
-  personOutline, 
+import {
+  swapHorizontalOutline,
+  mailOutline,
+  lockClosedOutline,
+  personOutline,
   callOutline,
   alertCircleOutline
 } from 'ionicons/icons';
@@ -130,12 +121,12 @@ const handleLogin = async () => {
     authStore.error = 'Veuillez remplir tous les champs';
     return;
   }
-  
-  const success = await authStore.login({ 
-    name: loginName.value, 
-    password: loginPassword.value 
+
+  const success = await authStore.login({
+    name: loginName.value,
+    password: loginPassword.value
   });
-  
+
   if (success) {
     router.push('/dashboard');
   }
@@ -268,8 +259,15 @@ ion-segment {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .error-msg {
@@ -294,10 +292,12 @@ ion-segment {
   .form-section {
     background: #1e1e1e;
   }
+
   .custom-input {
     --background: #2a2a2a;
     border-color: #333;
   }
+
   .logo-section p {
     color: #ccc;
   }
