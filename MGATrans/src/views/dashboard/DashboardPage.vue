@@ -50,9 +50,11 @@
       </div>
 
       <div class="transactions-list">
-        <div v-for="tx in recentTransactions" :key="tx.id" class="tx-item" @click="router.push('/transaction/' + tx.id)">
+        <div v-for="tx in recentTransactions" :key="tx.id" class="tx-item"
+          @click="router.push('/transaction/' + tx.id)">
           <div class="tx-icon" :class="tx.status">
-            <ion-icon :icon="tx.status === 'validated' ? checkmark : (tx.status === 'pending' ? timeOutline : close)"></ion-icon>
+            <ion-icon
+              :icon="tx.status === 'validated' ? checkmark : (tx.status === 'pending' ? timeOutline : close)"></ion-icon>
           </div>
           <div class="tx-info">
             <h4>Transfert vers {{ tx.beneficiary }}</h4>
@@ -63,7 +65,7 @@
             <p class="cny">{{ tx.amountCNY }} CNY</p>
           </div>
         </div>
-        
+
         <div v-if="recentTransactions.length === 0" class="empty-state">
           <ion-icon :icon="receiptOutline"></ion-icon>
           <p>Aucune transaction récente</p>
@@ -79,12 +81,12 @@
 
 <script setup lang="ts">
 import { IonPage, IonContent, IonButton, IonIcon } from '@ionic/vue';
-import { 
-  notificationsOutline, 
-  refreshOutline, 
-  trendingUpOutline, 
-  checkmark, 
-  timeOutline, 
+import {
+  notificationsOutline,
+  refreshOutline,
+  trendingUpOutline,
+  checkmark,
+  timeOutline,
   close,
   receiptOutline
 } from 'ionicons/icons';
@@ -99,6 +101,12 @@ const router = useRouter();
 const authStore = useAuthStore();
 const exchangeStore = useExchangeStore();
 const transactionStore = useTransactionStore();
+
+const storedUser = localStorage.getItem('user')
+
+if (storedUser) {
+  authStore.user = JSON.parse(storedUser)
+}
 
 // Mock some recent transactions if store is empty for demo
 const recentTransactions = ref([
@@ -309,19 +317,58 @@ const recentTransactions = ref([
   margin-right: 15px;
 }
 
-.tx-icon.validated { background: rgba(45, 211, 111, 0.1); color: #2dd36f; }
-.tx-icon.pending { background: rgba(255, 196, 9, 0.1); color: #ffc409; }
-.tx-icon.rejected { background: rgba(235, 68, 90, 0.1); color: #eb445a; }
+.tx-icon.validated {
+  background: rgba(45, 211, 111, 0.1);
+  color: #2dd36f;
+}
 
-.tx-icon ion-icon { font-size: 22px; }
+.tx-icon.pending {
+  background: rgba(255, 196, 9, 0.1);
+  color: #ffc409;
+}
 
-.tx-info { flex: 1; }
-.tx-info h4 { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: #1e2a4a; }
-.tx-info p { margin: 0; font-size: 12px; color: #8892a0; }
+.tx-icon.rejected {
+  background: rgba(235, 68, 90, 0.1);
+  color: #eb445a;
+}
 
-.tx-amount { text-align: right; }
-.tx-amount .mga { margin: 0; font-size: 15px; font-weight: 700; color: #1e2a4a; }
-.tx-amount .cny { margin: 0; font-size: 12px; color: #8892a0; }
+.tx-icon ion-icon {
+  font-size: 22px;
+}
+
+.tx-info {
+  flex: 1;
+}
+
+.tx-info h4 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e2a4a;
+}
+
+.tx-info p {
+  margin: 0;
+  font-size: 12px;
+  color: #8892a0;
+}
+
+.tx-amount {
+  text-align: right;
+}
+
+.tx-amount .mga {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e2a4a;
+}
+
+.tx-amount .cny {
+  margin: 0;
+  font-size: 12px;
+  color: #8892a0;
+}
 
 .empty-state {
   text-align: center;
@@ -336,12 +383,24 @@ const recentTransactions = ref([
 }
 
 @media (prefers-color-scheme: dark) {
-  .dashboard-content { --background: #121212; }
-  .header-section h3 { color: white; }
-  .rate-card, .tx-item { 
-    background: #1e1e1e; 
-    border-color: #2a2a2a; 
+  .dashboard-content {
+    --background: #121212;
   }
-  .tx-info h4, .tx-amount .mga, .section-header h2 { color: white; }
+
+  .header-section h3 {
+    color: white;
+  }
+
+  .rate-card,
+  .tx-item {
+    background: #1e1e1e;
+    border-color: #2a2a2a;
+  }
+
+  .tx-info h4,
+  .tx-amount .mga,
+  .section-header h2 {
+    color: white;
+  }
 }
 </style>

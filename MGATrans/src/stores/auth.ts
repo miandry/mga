@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { loginUser } from '@/services/api';
+import { loginUser, registerUser } from '@/services/api';
 
 export const useAuthStore = defineStore('auth', () => {
     const user = ref<any | null>(null);
@@ -36,6 +36,34 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
+    async function register(credentials: { name: string; password: string; field_phone?: string;}) {
+        loading.value = true;
+        error.value = null;
+        try {
+            const response = await registerUser(credentials);
+            if (response.data.status) {
+                const userData = response.data;
+                user.value = userData;
+                isAuthenticated.value = true;
+                localStorage.setItem('user', JSON.stringify(userData));
+                if (response.data.token) {
+                    localStorage.setItem('token', response.data.token);
+                }
+                return true;
+            } else {
+                error.value = "Le Nom d'utilisateur existe déja";
+                return false;
+            }
+            
+        } catch (err) {
+            error.value = 'Une erreur est survenue lors de la connexion';
+            console.error('Sign up error:', err);
+            return false;
+        } finally {
+            loading.value = false;
+        }
+    }
+
     function logout() {
         user.value = null;
         isAuthenticated.value = false;
@@ -51,5 +79,5 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
-    return { user, isAuthenticated, loading, error, login, logout, init };
+    return { user, isAuthenticated, loading, error, login, register, logout, init };
 });

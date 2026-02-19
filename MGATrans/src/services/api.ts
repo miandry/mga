@@ -15,3 +15,21 @@ const api = axios.create({
 export function loginUser(credentials: { name: string; password: string }) {
   return api.post("/api_solutions/user/login", credentials);
 }
+
+/**
+ * Sign up user
+ */
+export function registerUser(credentials: { 
+  name: string; 
+  password: string; 
+  field_phone?: string;
+}) {
+  const payload = { ...credentials };
+  
+  // Supprimer field_phone s'il est undefined ou vide
+  if (!payload.field_phone) {
+    delete payload.field_phone;
+  }
+  
+  return api.post("/api_solutions/user/register", payload);
+}

@@ -54,22 +54,30 @@
             <ion-list lines="none">
               <ion-item class="custom-input">
                 <ion-icon slot="start" :icon="personOutline"></ion-icon>
-                <ion-input label-placement="floating" label="Nom complet" placeholder="Jean Dupont"></ion-input>
+                <ion-input label-placement="floating" label="Nom d'utilisateur" placeholder="Jean Dupont"
+                  v-model="registerForm.name"></ion-input>
               </ion-item>
-              <ion-item class="custom-input">
+              <ion-item class="custom-input hidden">
                 <ion-icon slot="start" :icon="mailOutline"></ion-icon>
                 <ion-input label-placement="floating" label="Email" placeholder="votre@email.com"></ion-input>
               </ion-item>
               <ion-item class="custom-input">
                 <ion-icon slot="start" :icon="callOutline"></ion-icon>
-                <ion-input label-placement="floating" label="Téléphone" placeholder="+261 ..."></ion-input>
+                <ion-input label-placement="floating" label="Téléphone" placeholder="+261 ..."
+                  v-model="registerForm.field_phone"></ion-input>
               </ion-item>
               <ion-item class="custom-input">
                 <ion-icon slot="start" :icon="lockClosedOutline"></ion-icon>
-                <ion-input type="password" label-placement="floating" label="Mot de passe"
-                  placeholder="••••••••"></ion-input>
+                <ion-input type="password" label-placement="floating" label="Mot de passe" placeholder="••••••••"
+                  v-model="registerForm.pass"></ion-input>
               </ion-item>
             </ion-list>
+
+            <div v-if="authStore.error && authMode === 'register'" class="error-msg">
+              <ion-icon :icon="alertCircleOutline"></ion-icon>
+              {{ authStore.error }}
+            </div>
+
             <p class="tos-text">
               En vous inscrivant, vous acceptez nos <a href="#">Conditions d'Utilisation</a>.
             </p>
@@ -105,7 +113,7 @@ import {
   callOutline,
   alertCircleOutline
 } from 'ionicons/icons';
-import { ref } from 'vue';
+import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
@@ -115,6 +123,12 @@ const authStore = useAuthStore();
 
 const loginName = ref('');
 const loginPassword = ref('');
+
+const registerForm = reactive({
+  name: '',
+  pass: '',
+  field_phone: ''
+})
 
 const handleLogin = async () => {
   if (!loginName.value || !loginPassword.value) {
@@ -132,9 +146,21 @@ const handleLogin = async () => {
   }
 };
 
-const handleRegister = () => {
-  // Inscription non implémentée avec l'API pour le moment
-  console.log('Register logic here');
+const handleRegister = async () => {
+  if (!registerForm.name || !registerForm.pass) {
+    authStore.error = 'Veuillez remplir tous les champs requis';
+    return;
+  }
+
+  const success = await authStore.register({
+    name: registerForm.name,
+    password: registerForm.pass,
+    field_phone: registerForm.field_phone,
+  });
+
+  if (success) {
+    router.push('/dashboard');
+  }
 };
 </script>
 
