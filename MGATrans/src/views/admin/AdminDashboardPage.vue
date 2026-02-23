@@ -132,7 +132,7 @@ const adminComment = ref('');
 const isLoading = ref(false);
 
 const pendingTransactions = computed(() => {
-  return transactionStore.transactions.filter(tx => tx.status === 'pending');
+  return transactionStore.transactions.filter(tx => tx.status === 'request_transfer');
 });
 
 const pendingCount = computed(() => pendingTransactions.value.length);
@@ -144,7 +144,7 @@ const handleValidate = () => {
   if (!selectedTx.value) return;
   isLoading.value = true;
   setTimeout(() => {
-    transactionStore.updateTransactionStatus(selectedTx.value.id, 'validated', 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=MGATrans-VALIDATED');
+    transactionStore.updateTransactionStatus(selectedTx.value.id, 'confirmed', 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=MGATrans-CONFIRMED');
     isLoading.value = false;
     selectedTx.value = null;
   }, 1500);
@@ -154,7 +154,7 @@ const handleReject = () => {
   if (!selectedTx.value) return;
   isLoading.value = true;
   setTimeout(() => {
-    transactionStore.updateTransactionStatus(selectedTx.value.id, 'rejected');
+    transactionStore.updateTransactionStatus(selectedTx.value.id, 'draft');
     isLoading.value = false;
     selectedTx.value = null;
   }, 1500);

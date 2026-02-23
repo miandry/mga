@@ -21,12 +21,16 @@
       <!-- Balance Card -->
       <div class="balance-card">
         <div class="card-glow"></div>
-        <p class="balance-label">Solde total</p>
-        <h1 class="balance-amount">1,250,000 <span>MGA</span></h1>
+        <p class="balance-label">Total transféré (RMB)</p>
+        <h1 class="balance-amount">
+          <span v-if="isLoading">...</span>
+          <span v-else>{{ totalCNY.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+          <span class="currency-unit">CNY</span>
+        </h1>
         <div class="card-footer">
           <div class="exchange-preview">
             <ion-icon :icon="refreshOutline"></ion-icon>
-            <span>≈ {{ exchangeStore.convertMGAtoCNY(1250000) }} CNY</span>
+            <span>≈ {{ totalMGA.toLocaleString() }} MGA</span>
           </div>
           <div class="status-chip">Compte actif</div>
         </div>
@@ -55,10 +59,10 @@
       <div class="transactions-list">
         <div v-for="tx in recentTransactions" :key="tx.id" class="tx-item" @click="router.push('/transaction/' + tx.id)">
           <div class="tx-icon" :class="tx.status">
-            <ion-icon :icon="tx.status === 'validated' ? checkmark : (tx.status === 'pending' ? timeOutline : close)"></ion-icon>
+            <ion-icon :icon="txIcon(tx.status)"></ion-icon>
           </div>
           <div class="tx-info">
-            <h4>Transfert vers {{ tx.beneficiary }}</h4>
+            <h4>Transfert {{ tx.method }}</h4>
             <p>{{ tx.date }} • {{ tx.method }}</p>
           </div>
           <div class="tx-amount">
@@ -67,7 +71,20 @@
           </div>
         </div>
         
-        <div v-if="recentTransactions.length === 0" class="empty-state">
+        <!-- Loading skeleton -->
+        <div v-if="isLoading" class="loading-state">
+          <ion-spinner name="crescent"></ion-spinner>
+          <p>Chargement...</p>
+        </div>
+
+        <!-- Error -->
+        <div v-else-if="loadError" class="empty-state">
+          <ion-icon :icon="receiptOutline"></ion-icon>
+          <p>{{ loadError }}</p>
+        </div>
+
+        <!-- Empty -->
+        <div v-else-if="recentTransactions.length === 0" class="empty-state">
           <ion-icon :icon="receiptOutline"></ion-icon>
           <p>Aucune transaction récente</p>
         </div>
@@ -83,22 +100,24 @@
 <script setup lang="ts">
 import { 
   IonPage, IonContent, IonButton, IonIcon, 
-  IonButtons, IonMenuButton 
+  IonButtons, IonMenuButton, IonSpinner 
 } from '@ionic/vue';
 import { 
   notificationsOutline, 
   refreshOutline, 
   trendingUpOutline, 
-  checkmark, 
+  checkmarkCircle,
   timeOutline, 
-  close,
-  receiptOutline
+  closeCircle,
+  receiptOutline,
+  alertCircleOutline
 } from 'ionicons/icons';
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useExchangeStore } from '@/stores/exchange';
 import { useTransactionStore } from '@/stores/transactions';
+import { API_BASE_URL } from '@/services/api';
 import BottomNav from '@/components/common/BottomNav.vue';
 
 const router = useRouter();
@@ -106,11 +125,114 @@ const authStore = useAuthStore();
 const exchangeStore = useExchangeStore();
 const transactionStore = useTransactionStore();
 
-// Mock some recent transactions if store is empty for demo
-const recentTransactions = ref([
-  { id: '1', beneficiary: 'Alibaba Seller', amountMGA: 500000, amountCNY: 750, method: 'Alipay', status: 'validated', date: 'Aujourd\'hui, 09:45' },
-  { id: '2', beneficiary: 'Li Wei', amountMGA: 200000, amountCNY: 300, method: 'WeChat', status: 'pending', date: 'Hier, 14:20' },
-]);
+const recentTransactions = ref<any[]>([]);
+const isLoading = ref(false);
+const loadError = ref('');
+
+const totalCNY = ref(0);
+const totalMGA = ref(0);
+
+/** Helper: pick the right icon per status */
+const txIcon = (status: string) => {
+  switch (status) {
+    case 'confirmed': return checkmarkCircle;
+    case 'payer':     return checkmarkCircle;
+    case 'en_cours':  return timeOutline;
+    case 'request_transfer': return timeOutline;
+    default:          return closeCircle; // draft
+  }
+};
+
+/** Format a Drupal date (Unix timestamp in seconds or ISO string) to DD/MM/YY */
+const formatDate = (raw: any): string => {
+  if (!raw) return '';
+  const d = typeof raw === 'number' || /^\d+$/.test(String(raw))
+    ? new Date(parseInt(String(raw)) * 1000)   // Unix seconds → ms
+    : new Date(raw);                            // ISO string
+  if (isNaN(d.getTime())) return String(raw);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${dd}/${mm}/${yy}`;
+};
+
+/** Map raw API node to local tx model */
+const mapNode = (node: any) => {
+  const rmb = parseFloat(node.field_montant_rmb ?? 0);
+
+  // field_cours_rmb can be: a number, an object {name, title}, or an array [{name}]
+  const raw = node.field_cours_rmb;
+  let cours = 0;
+  if (typeof raw === 'number') {
+    cours = raw;
+  } else if (Array.isArray(raw) && raw.length > 0) {
+    cours = parseFloat(raw[0]?.name ?? raw[0]?.title ?? 0);
+  } else if (raw && typeof raw === 'object') {
+    cours = parseFloat(raw.name ?? raw.title ?? 0);
+  }
+
+  return {
+    id:          String(node.nid ?? node.id ?? ''),
+    beneficiary: node.title ?? '—',
+    amountMGA:   cours > 0 ? Math.round(cours * rmb) : 0,
+    amountCNY:   rmb,
+    rate:        cours,
+    method:      (node.field_method_payment === 'WeChat' ? 'WeChat' : 'Alipay') as 'WeChat' | 'Alipay',
+    status:      (node.field_status_process === 'en_cours' || node.field_status_process === 'in_process' ? 'in_process' : 
+                  node.field_status_process === 'payer' || node.field_status_process === 'payed' ? 'payed' : 
+                  node.field_status_process) as any,
+    date:        formatDate(node.created ?? node.changed),
+    reference:   '',
+    proofUrl:    node.field_image_ariary?.[0]?.url || '',
+    qrCodeUrl:   node.field_image_qrcode?.map((img: any) => img.url) || [],
+  };
+};
+
+onMounted(async () => {
+  await exchangeStore.init();
+  isLoading.value = true;
+  loadError.value = '';
+  try {
+    // 1. Fetch Summary
+    const summaryResponse = await fetch(`${API_BASE_URL}/api/mga/user/summary?token=${authStore.token}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+    });
+    const summaryData = await summaryResponse.json();
+    if (summaryData.total_rmb !== undefined) {
+      totalCNY.value = summaryData.total_rmb;
+      totalMGA.value = summaryData.total_mga;
+    }
+
+    // 2. Fetch Recent Transactions
+    const response = await fetch(
+      `${API_BASE_URL}/api_solutions/api/v2/node/transfer?sort[val]=created&sort[op]=DESC&offset=5&token=${authStore.token}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+      }
+    );
+    const data = await response.json();
+    // Accept [ ] directly or { rows: [] } envelope
+    const rows = Array.isArray(data) ? data : (data.rows ?? []);
+    recentTransactions.value = rows.map(mapNode);
+    // Sync to store for detail page
+    rows.forEach((n: any) => {
+      const tx = mapNode(n);
+      const exists = transactionStore.transactions.find(t => t.id === tx.id);
+      if (!exists) transactionStore.addTransaction({ ...tx, reference: '' });
+    });
+  } catch (err: any) {
+    console.error('Dashboard load error:', err);
+    loadError.value = 'Impossible de charger les données.';
+  } finally {
+    isLoading.value = false;
+  }
+});
 </script>
 
 <style scoped>
@@ -315,9 +437,18 @@ const recentTransactions = ref([
   margin-right: 15px;
 }
 
-.tx-icon.validated { background: rgba(45, 211, 111, 0.1); color: #2dd36f; }
-.tx-icon.pending { background: rgba(255, 196, 9, 0.1); color: #ffc409; }
-.tx-icon.rejected { background: rgba(235, 68, 90, 0.1); color: #eb445a; }
+.tx-icon.confirmed        { background: rgba(45, 211, 111, 0.12); color: #2dd36f; }
+.tx-icon.payer            { background: rgba(112, 26, 211, 0.12); color: #7b2ff7; }
+.tx-icon.en_cours         { background: rgba(56, 128, 255, 0.12); color: #3880ff; }
+.tx-icon.request_transfer { background: rgba(255, 196, 9,  0.12); color: #e0a800; }
+.tx-icon.draft            { background: rgba(136,146,160, 0.15); color: #8892a0; }
+
+.loading-state {
+  text-align: center;
+  padding: 40px 0;
+  color: #8892a0;
+}
+.loading-state ion-spinner { font-size: 32px; margin-bottom: 8px; }
 
 .tx-icon ion-icon { font-size: 22px; }
 

@@ -92,10 +92,16 @@
 
     <ion-footer class="ion-no-border">
       <ion-toolbar class="footer-toolbar">
-        <ion-button expand="block" class="next-btn" @click="handleContinue" :disabled="!isValid">
-          Continuer
-          <ion-icon slot="end" :icon="arrowForwardOutline"></ion-icon>
-        </ion-button>
+        <div class="footer-actions">
+          <ion-button fill="outline" color="medium" class="draft-btn" @click="saveAsDraft" :disabled="!isValid || savingDraft">
+            <ion-spinner v-if="savingDraft" name="crescent"></ion-spinner>
+            <span v-else>Brouillon</span>
+          </ion-button>
+          <ion-button class="next-btn" @click="handleContinue" :disabled="!isValid">
+            Continuer
+            <ion-icon slot="end" :icon="arrowForwardOutline"></ion-icon>
+          </ion-button>
+        </div>
       </ion-toolbar>
     </ion-footer>
   </ion-page>
@@ -104,15 +110,17 @@
 <script setup lang="ts">
 import { 
   IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, 
-  IonContent, IonInput, IonList, IonItem, IonIcon, IonFooter, IonButton,
+  IonContent, IonInput, IonList, IonItem, IonIcon, IonFooter, IonButton, IonSpinner,
   IonSegment, IonSegmentButton, IonLabel
 } from '@ionic/vue';
 import { 
   chevronBackOutline, swapVerticalOutline, chatbubbleEllipsesOutline, 
   cardOutline, informationCircleOutline, arrowForwardOutline,
-  closeCircleOutline
+  closeCircleOutline, saveOutline
 } from 'ionicons/icons';
 import { ref, computed, onMounted } from 'vue';
+import { useTransactionStore } from '@/stores/transactions';
+import { useAuthStore } from '@/stores/auth';
 import { useRouter, useRoute } from 'vue-router';
 import { useExchangeStore } from '@/stores/exchange';
 import { API_BASE_URL } from '@/services/api';
@@ -120,6 +128,8 @@ import { API_BASE_URL } from '@/services/api';
 const router = useRouter();
 const route = useRoute();
 const exchangeStore = useExchangeStore();
+const transactionStore = useTransactionStore();
+const authStore = useAuthStore();
 
 const amountInput = ref<number | null>(null);
 const inputCurrency = ref('MGA');
@@ -128,6 +138,7 @@ const amountMGA_Display = ref('0');
 const method = ref('WeChat');
 const token = ref<string | null>(null);
 const isValidToken = ref(true);
+const savingDraft = ref(false);
 
 onMounted(async () => {
   token.value = route.query.token as string || null;
@@ -172,17 +183,16 @@ const isValid = computed(() => {
   return amountInput.value && amountInput.value > 0;
 });
 
-const handleContinue = () => {
-  let finalMGA, finalCNY;
-  
+const getFinalAmounts = () => {
   if (inputCurrency.value === 'MGA') {
-    finalMGA = amountInput.value;
-    finalCNY = amountCNY.value;
+    return { finalMGA: amountInput.value, finalCNY: amountCNY.value };
   } else {
-    finalCNY = amountInput.value;
-    finalMGA = amountMGA_Display.value;
+    return { finalCNY: amountInput.value, finalMGA: amountMGA_Display.value };
   }
+};
 
+const handleContinue = () => {
+  const { finalMGA, finalCNY } = getFinalAmounts();
   router.push({
     path: '/transfer/upload',
     query: {
@@ -192,6 +202,57 @@ const handleContinue = () => {
       token: token.value
     }
   });
+};
+
+const saveAsDraft = async () => {
+  if (!amountInput.value) return;
+  savingDraft.value = true;
+
+  const { finalMGA, finalCNY } = getFinalAmounts();
+
+  try {
+    const payload = {
+      entity_type: 'node',
+      bundle: 'transfer',
+      title: `Brouillon - ${new Date().toLocaleDateString('fr-MG')}`,
+      field_montant_rmb: parseFloat(String(finalCNY)),
+      field_method_payment: method.value,
+      field_status_process: "draft",
+      field_cours_rmb: exchangeStore.rateHistory[0]?.tid || '',
+      status: 0, // 0 = brouillon (non publié)
+      token: authStore.token
+    };
+
+    const response = await fetch(`${API_BASE_URL}/api_solutions/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+
+    if (data.status === true) {
+      const now = new Date().toLocaleDateString('fr-MG', { day: '2-digit', month: 'short', year: 'numeric' });
+      transactionStore.addTransaction({
+        id: String(data.item),
+        amountMGA: parseFloat(String(finalMGA)),
+        amountCNY: parseFloat(String(finalCNY)),
+        method: method.value as 'WeChat' | 'Alipay',
+        status: 'draft',
+        date: now,
+        beneficiary: '—',
+        rate: exchangeStore.rateMGAtoCNY,
+        reference: 'Brouillon'
+      });
+      router.push('/dashboard');
+    } else {
+      alert('Erreur: ' + (data.message || 'Impossible de sauvegarder le brouillon.'));
+    }
+  } catch (err: any) {
+    console.error('Draft save error:', err);
+    alert('Erreur réseau: ' + err.message);
+  } finally {
+    savingDraft.value = false;
+  }
 };
 </script>
 
@@ -430,11 +491,25 @@ ion-segment-button {
   --background: transparent;
 }
 
+.footer-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.8fr;
+  gap: 12px;
+}
+
+.draft-btn {
+  --border-radius: 14px;
+  height: 56px;
+  font-weight: 700;
+  margin: 0;
+}
+
 .next-btn {
   --border-radius: 16px;
   height: 56px;
   font-weight: 700;
   letter-spacing: 0.5px;
+  margin: 0;
 }
 
 @media (prefers-color-scheme: dark) {

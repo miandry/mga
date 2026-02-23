@@ -35,9 +35,9 @@
             </div>
           </div>
           <div class="qr-label-input">
-            <label>Nom du bénéficiaire / Aliase</label>
+            <label>Montant (RMB) </label>
             <ion-input 
-              placeholder="Ex: Mon WeChat, Maman..." 
+              placeholder="Ex: 3000 ..." 
               v-model="qr.label"
               class="custom-box-input"
             ></ion-input>
@@ -220,9 +220,10 @@ const handleFinish = async (isDraft = false) => {
         amountMGA: parseFloat(transferData.value.amountMGA),
         amountCNY: parseFloat(transferData.value.amountCNY),
         method: transferData.value.method,
-        status: isDraft ? 'draft' : 'pending',
+        status: isDraft ? 'draft' : 'request_transfer',
         date: 'À l\'instant',
         beneficiary: 'Transaction directe',
+        rate: parseFloat(transferData.value.rate ?? exchangeStore.rateMGAtoCNY),
         proofUrl: '', 
         qrCodeUrl: uploadedQRs.value[0]?.preview || '',
         reference: references[0] || 'Draft'
