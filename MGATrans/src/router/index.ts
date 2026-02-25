@@ -79,6 +79,10 @@ router.beforeEach((to, from, next) => {
   const isPublicPath = publicPaths.includes(to.path);
   const hasToken = to.query.token;
 
+  if (to.path === '/auth/login' && authStore.isAuthenticated) {
+    return next('/dashboard');
+  }
+
   // Special case for /transfer: allow if has token or is authenticated
   if (to.path.startsWith('/transfer')) {
     if (hasToken || authStore.isAuthenticated) {

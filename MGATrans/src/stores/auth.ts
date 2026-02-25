@@ -24,7 +24,8 @@ export const useAuthStore = defineStore('auth', () => {
             const data = await response.json();
 
             if (response.ok && data.status) {
-                const userData = data.data;
+                console.log('Login successful:', data);
+                const userData = data;
                 user.value = userData;
                 isAuthenticated.value = true;
                 localStorage.setItem('user', JSON.stringify(userData));
@@ -40,6 +41,43 @@ export const useAuthStore = defineStore('auth', () => {
         } catch (err) {
             error.value = 'Une erreur est survenue lors de la connexion';
             console.error('Login error:', err);
+            return false;
+        } finally {
+            loading.value = false;
+        }
+    }
+
+    async function register(credentials: { name: string; password: string; field_phone?: string;}) {
+        loading.value = true;
+        error.value = null;
+        try {
+            const response = await fetch(`${API_BASE_URL}/api_solutions/user/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(credentials),
+            });
+            const data = await response.json();
+            console.log('Register response:', data.status);
+            if (response.ok && data.status === true) {
+                console.log('Registration successful:', data);
+                const userData = data;
+                user.value = userData;
+                isAuthenticated.value = true;
+                localStorage.setItem('user', JSON.stringify(userData));
+                if (data.token) {
+                    localStorage.setItem('token', data.token);
+                }
+                return true;
+            } else {
+                error.value = "Le Nom d'utilisateur existe déja";
+                return false;
+            }
+            
+        } catch (err) {
+            error.value = 'Une erreur est survenue lors de la connexion';
+            console.error('Sign up error:', err);
             return false;
         } finally {
             loading.value = false;
@@ -66,5 +104,5 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
-    return { user, token, isAuthenticated, loading, error, login, logout, init };
+    return { user, token, isAuthenticated, loading, error, login, register, logout, init };
 });

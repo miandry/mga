@@ -26,23 +26,13 @@
             <ion-list lines="none">
               <ion-item class="custom-input">
                 <ion-icon slot="start" :icon="personOutline"></ion-icon>
-                <ion-input 
-                  type="text" 
-                  label-placement="floating" 
-                  label="Nom d'utilisateur" 
-                  placeholder="votre nom"
-                  v-model="loginName"
-                ></ion-input>
+                <ion-input type="text" label-placement="floating" label="Nom d'utilisateur" placeholder="votre nom"
+                  v-model="loginName"></ion-input>
               </ion-item>
               <ion-item class="custom-input">
                 <ion-icon slot="start" :icon="lockClosedOutline"></ion-icon>
-                <ion-input 
-                  type="password" 
-                  label-placement="floating" 
-                  label="Mot de passe" 
-                  placeholder="••••••••"
-                  v-model="loginPassword"
-                ></ion-input>
+                <ion-input type="password" label-placement="floating" label="Mot de passe" placeholder="••••••••"
+                  v-model="loginPassword"></ion-input>
               </ion-item>
             </ion-list>
 
@@ -64,7 +54,8 @@
             <ion-list lines="none">
               <ion-item class="custom-input">
                 <ion-icon slot="start" :icon="personOutline"></ion-icon>
-                <ion-input label-placement="floating" label="Nom complet" placeholder="Jean Dupont"></ion-input>
+                <ion-input label-placement="floating" label="Nom complet" placeholder="Jean Dupont"
+                  v-model="registerForm.name"></ion-input>
               </ion-item>
               <ion-item class="custom-input">
                 <ion-icon slot="start" :icon="mailOutline"></ion-icon>
@@ -72,13 +63,22 @@
               </ion-item>
               <ion-item class="custom-input">
                 <ion-icon slot="start" :icon="callOutline"></ion-icon>
-                <ion-input label-placement="floating" label="Téléphone" placeholder="+261 ..."></ion-input>
+                <ion-input label-placement="floating" label="Téléphone" placeholder="+261 ..."
+                  v-model="registerForm.field_phone"></ion-input>
               </ion-item>
               <ion-item class="custom-input">
                 <ion-icon slot="start" :icon="lockClosedOutline"></ion-icon>
-                <ion-input type="password" label-placement="floating" label="Mot de passe" placeholder="••••••••"></ion-input>
+                <ion-input type="password" label-placement="floating" label="Mot de passe" placeholder="••••••••"
+                  v-model="registerForm.pass"></ion-input>
               </ion-item>
             </ion-list>
+
+            <div v-if="authStore.error && authMode === 'register'" class="error-msg">
+              <ion-icon :icon="alertCircleOutline"></ion-icon>
+              {{ authStore.error }}
+            </div>
+
+
             <p class="tos-text">
               En vous inscrivant, vous acceptez nos <a href="#">Conditions d'Utilisation</a>.
             </p>
@@ -93,28 +93,28 @@
 </template>
 
 <script setup lang="ts">
-import { 
-  IonPage, 
-  IonContent, 
-  IonInput, 
-  IonItem, 
-  IonList, 
-  IonButton, 
-  IonIcon, 
-  IonSegment, 
-  IonSegmentButton, 
+import {
+  IonPage,
+  IonContent,
+  IonInput,
+  IonItem,
+  IonList,
+  IonButton,
+  IonIcon,
+  IonSegment,
+  IonSegmentButton,
   IonLabel,
   IonSpinner
 } from '@ionic/vue';
-import { 
-  swapHorizontalOutline, 
-  mailOutline, 
-  lockClosedOutline, 
-  personOutline, 
+import {
+  swapHorizontalOutline,
+  mailOutline,
+  lockClosedOutline,
+  personOutline,
   callOutline,
   alertCircleOutline
 } from 'ionicons/icons';
-import { ref } from 'vue';
+import { reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
@@ -125,26 +125,48 @@ const authStore = useAuthStore();
 const loginName = ref('');
 const loginPassword = ref('');
 
+const registerForm = reactive({
+  name: '',
+  pass: '',
+  field_phone: ''
+})
+
 const handleLogin = async () => {
   if (!loginName.value || !loginPassword.value) {
     authStore.error = 'Veuillez remplir tous les champs';
     return;
   }
-  
-  const success = await authStore.login({ 
-    name: loginName.value, 
-    password: loginPassword.value 
+
+  const success = await authStore.login({
+    name: loginName.value,
+    password: loginPassword.value
   });
-  
+
   if (success) {
     router.push('/dashboard');
   }
 };
 
-const handleRegister = () => {
-  // Inscription non implémentée avec l'API pour le moment
-  console.log('Register logic here');
+const handleRegister = async () => {
+  if (!registerForm.name || !registerForm.pass) {
+    authStore.error = 'Veuillez remplir tous les champs requis';
+    return;
+  }
+
+  const success = await authStore.register({
+    name: registerForm.name,
+    password: registerForm.pass,
+    field_phone: registerForm.field_phone,
+  });
+
+  if (success) {
+    router.push('/dashboard');
+  }
 };
+
+watch(authMode, () => {
+  authStore.error = null;
+});
 </script>
 
 <style scoped>
@@ -268,8 +290,15 @@ ion-segment {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .error-msg {
@@ -294,10 +323,12 @@ ion-segment {
   .form-section {
     background: #1e1e1e;
   }
+
   .custom-input {
     --background: #2a2a2a;
     border-color: #333;
   }
+
   .logo-section p {
     color: #ccc;
   }
