@@ -201,6 +201,7 @@ const handleFinish = async (isDraft = false) => {
       field_method_payment: transferData.value.method,
       field_montant_rmb: transferData.value.amountCNY,
       field_status_priority: isDraft ? 'low' : 'normal',
+      field_status_process: isDraft ? 'draft' : 'in_process',
       field_reference_code: references,
       status: isDraft ? 0 : 1, // 0 = Draft (Unpublished), 1 = Published
       token: authStore.token
@@ -220,7 +221,7 @@ const handleFinish = async (isDraft = false) => {
         amountMGA: parseFloat(transferData.value.amountMGA),
         amountCNY: parseFloat(transferData.value.amountCNY),
         method: transferData.value.method,
-        status: isDraft ? 'draft' : 'request_transfer',
+        status: isDraft ? 'draft' : 'in_process',
         date: 'À l\'instant',
         beneficiary: 'Transaction directe',
         rate: parseFloat(transferData.value.rate ?? exchangeStore.rateMGAtoCNY),

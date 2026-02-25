@@ -417,7 +417,7 @@ ion-segment-button {
 }
 
 .status-tag.confirmed    { background: rgba(45, 211, 111, 0.12); color: #2dd36f; }
-.status-tag.en_cours     { background: rgba(56, 128, 255, 0.12); color: #3880ff; }
+.status-tag.in_process   { background: rgba(56, 128, 255, 0.12); color: #3880ff; }
 .status-tag.request_transfer { background: rgba(255, 196, 9, 0.12); color: #e0a800; }
 .status-tag.payer        { background: rgba(112, 26, 211, 0.12); color: #7b2ff7; }
 .status-tag.draft        { background: rgba(136, 146, 160, 0.15); color: #8892a0; }

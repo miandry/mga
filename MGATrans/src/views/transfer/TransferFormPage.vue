@@ -24,10 +24,11 @@
       <div class="form-section">
         <div class="currency-switch-container">
           <ion-segment v-model="inputCurrency" @ion-change="handleCurrencyChange">
-            <ion-segment-button value="MGA">
+            <ion-segment-button value="MGA" :class="{ activeCurrency: inputCurrency === 'MGA' }">
               <ion-label>Ariary (MGA)</ion-label>
             </ion-segment-button>
-            <ion-segment-button value="CNY">
+
+            <ion-segment-button value="CNY" :class="{ activeCurrency: inputCurrency === 'CNY' }">
               <ion-label>RMB (CNY)</ion-label>
             </ion-segment-button>
           </ion-segment>
@@ -35,13 +36,8 @@
 
         <label class="input-label">Montant à envoyer ({{ inputCurrency }})</label>
         <div class="amount-container">
-          <ion-input 
-            type="number" 
-            :placeholder="inputCurrency === 'MGA' ? '0' : '0.00'" 
-            v-model="amountInput" 
-            @ion-input="handleInputChange"
-            class="main-amount-input"
-          ></ion-input>
+          <ion-input type="number" :placeholder="inputCurrency === 'MGA' ? '0' : '0.00'" v-model="amountInput"
+            @ion-input="handleInputChange" class="main-amount-input"></ion-input>
           <span class="currency">{{ inputCurrency }}</span>
         </div>
 
@@ -50,7 +46,7 @@
           <div class="conv-info">
             <p v-if="inputCurrency === 'MGA'">Le bénéficiaire recevra environ</p>
             <p v-else>Cela vous coûtera environ</p>
-            
+
             <h3 v-if="inputCurrency === 'MGA'">{{ amountCNY }} <span>CNY</span></h3>
             <h3 v-else>{{ amountMGA_Display }} <span>MGA</span></h3>
           </div>
@@ -58,22 +54,14 @@
 
         <label class="input-label">Mode de réception</label>
         <div class="method-grid">
-          <div 
-            class="method-card" 
-            :class="{ selected: method === 'WeChat' }"
-            @click="method = 'WeChat'"
-          >
+          <div class="method-card" :class="{ selected: method === 'WeChat' }" @click="method = 'WeChat'">
             <div class="method-icon wechat">
               <ion-icon :icon="chatbubbleEllipsesOutline"></ion-icon>
             </div>
             <p>WeChat Pay</p>
             <div class="radio-check"></div>
           </div>
-          <div 
-            class="method-card" 
-            :class="{ selected: method === 'Alipay' }"
-            @click="method = 'Alipay'"
-          >
+          <div class="method-card" :class="{ selected: method === 'Alipay' }" @click="method = 'Alipay'">
             <div class="method-icon alipay">
               <ion-icon :icon="cardOutline"></ion-icon>
             </div>
@@ -82,7 +70,7 @@
           </div>
         </div>
 
-        </div>
+      </div>
 
       <div class="info-note">
         <ion-icon :icon="informationCircleOutline"></ion-icon>
@@ -93,7 +81,8 @@
     <ion-footer class="ion-no-border">
       <ion-toolbar class="footer-toolbar">
         <div class="footer-actions">
-          <ion-button fill="outline" color="medium" class="draft-btn" @click="saveAsDraft" :disabled="!isValid || savingDraft">
+          <ion-button fill="outline" color="medium" class="draft-btn" @click="saveAsDraft"
+            :disabled="!isValid || savingDraft">
             <ion-spinner v-if="savingDraft" name="crescent"></ion-spinner>
             <span v-else>Brouillon</span>
           </ion-button>
@@ -108,13 +97,13 @@
 </template>
 
 <script setup lang="ts">
-import { 
-  IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, 
+import {
+  IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle,
   IonContent, IonInput, IonList, IonItem, IonIcon, IonFooter, IonButton, IonSpinner,
   IonSegment, IonSegmentButton, IonLabel
 } from '@ionic/vue';
-import { 
-  chevronBackOutline, swapVerticalOutline, chatbubbleEllipsesOutline, 
+import {
+  chevronBackOutline, swapVerticalOutline, chatbubbleEllipsesOutline,
   cardOutline, informationCircleOutline, arrowForwardOutline,
   closeCircleOutline, saveOutline
 } from 'ionicons/icons';
@@ -309,6 +298,13 @@ ion-header ion-toolbar {
   color: white;
 }
 
+.activeCurrency {
+  background: var(--ion-color-primary) !important;
+  color: white !important;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
 .line {
   width: 60px;
   height: 2px;
@@ -327,7 +323,7 @@ ion-segment {
 }
 
 ion-segment-button {
-  --indicator-color: var(--ion-color-primary);
+  /*--indicator-color: var(--ion-color-primary);*/
   --color: #8892a0;
   --color-checked: white;
   --border-radius: 10px;
@@ -432,8 +428,15 @@ ion-segment-button {
   font-size: 24px;
 }
 
-.wechat { background: #07c160; color: white; }
-.alipay { background: #00a0e9; color: white; }
+.wechat {
+  background: #07c160;
+  color: white;
+}
+
+.alipay {
+  background: #00a0e9;
+  color: white;
+}
 
 .method-card p {
   margin: 0;
@@ -513,9 +516,26 @@ ion-segment-button {
 }
 
 @media (prefers-color-scheme: dark) {
-  ion-header ion-toolbar { --background: #121212; --color: white; }
-  .amount-container, .method-card, .custom-item { background: #1e1e1e; border-color: #2a2a2a; }
-  .input-label, .conv-info h3, .method-card p { color: white; }
-  .main-amount-input { color: #428cff; }
+  ion-header ion-toolbar {
+    --background: #121212;
+    --color: white;
+  }
+
+  .amount-container,
+  .method-card,
+  .custom-item {
+    background: #1e1e1e;
+    border-color: #2a2a2a;
+  }
+
+  .input-label,
+  .conv-info h3,
+  .method-card p {
+    color: white;
+  }
+
+  .main-amount-input {
+    color: #428cff;
+  }
 }
 </style>

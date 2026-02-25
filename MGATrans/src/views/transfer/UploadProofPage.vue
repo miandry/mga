@@ -32,29 +32,28 @@
         <div v-for="(proof, index) in paymentProofs" :key="index" class="proof-item-container">
           <div class="proof-header">
             <label class="input-label">{{ index + 1 }}. Justificatif de paiement (MGA)</label>
-            <ion-button fill="clear" color="danger" v-if="paymentProofs.length > 1" @click="removeProof(index)" class="remove-proof-btn">
+            <ion-button fill="clear" color="danger" v-if="paymentProofs.length > 1" @click="removeProof(index)"
+              class="remove-proof-btn">
               <ion-icon slot="icon-only" :icon="trashOutline"></ion-icon>
             </ion-button>
           </div>
           <p class="input-hint">Photos de votre transfert ou reçu bancaire.</p>
-          
+
           <div v-if="!proof.preview" class="upload-box" @click="triggerUpload(index)">
             <ion-icon :icon="cameraOutline"></ion-icon>
             <p>Prendre une photo ou choisir un fichier</p>
           </div>
           <div v-else class="preview-box">
-            <img :src="proof.preview" :alt="proof.reference || 'Justificatif de paiement'" :title="proof.reference || 'Justificatif de paiement'" />
+            <img :src="proof.preview" :alt="proof.reference || 'Justificatif de paiement'"
+              :title="proof.reference || 'Justificatif de paiement'" />
             <div class="remove-btn" @click="clearProofImage(index)">
               <ion-icon :icon="closeCircle"></ion-icon>
             </div>
           </div>
 
           <div class="reference-input-container">
-            <ion-input 
-              placeholder="Référence de la transaction (Ex: MM2401...)" 
-              v-model="proof.reference"
-              class="ref-input"
-            ></ion-input>
+            <ion-input placeholder="Référence de la transaction (Ex: MM2401...)" v-model="proof.reference"
+              class="ref-input"></ion-input>
           </div>
         </div>
 
@@ -79,22 +78,31 @@
 
     <ion-footer class="ion-no-border">
       <ion-toolbar class="footer-toolbar">
-        <ion-button expand="block" class="finish-btn" @click="handleContinue" :disabled="!isReady || isLoading">
-          <ion-spinner v-if="isLoading" name="crescent"></ion-spinner>
-          <span v-else>Suivant</span>
-          <ion-icon v-if="!isLoading" slot="end" :icon="arrowForwardOutline"></ion-icon>
-        </ion-button>
+        <div class="footer-actions">
+
+          <ion-button fill="outline" color="medium" class="draft-btn" @click="saveAsDraft" :disabled="isLoading">
+            <ion-spinner v-if="isLoading" name="crescent"></ion-spinner>
+            <span v-else>Brouillon</span>
+          </ion-button>
+
+          <ion-button class="finish-btn" @click="handleContinue" :disabled="!isReady || isLoading">
+            <ion-spinner v-if="isLoading" name="crescent"></ion-spinner>
+            <span v-else>Suivant</span>
+            <ion-icon v-if="!isLoading" slot="end" :icon="arrowForwardOutline"></ion-icon>
+          </ion-button>
+
+        </div>
       </ion-toolbar>
     </ion-footer>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { 
-  IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, 
+import {
+  IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle,
   IonContent, IonIcon, IonFooter, IonButton, IonSpinner
 } from '@ionic/vue';
-import { 
+import {
   chevronBackOutline, cameraOutline, arrowForwardOutline,
   closeCircle, addOutline, trashOutline
 } from 'ionicons/icons';
@@ -103,6 +111,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useExchangeStore } from '@/stores/exchange';
 import { API_BASE_URL } from '@/services/api';
+import { useTransactionStore } from '@/stores/transactions';
+const transactionStore = useTransactionStore();
 
 const router = useRouter();
 const route = useRoute();
@@ -118,8 +128,9 @@ const isLoading = ref(false);
 
 const paymentInput = ref<HTMLInputElement | null>(null);
 
-onMounted(() => {
+onMounted(async () => {
   transferData.value = route.query;
+  await exchangeStore.init();
 });
 
 const addProof = () => {
@@ -143,7 +154,7 @@ const triggerUpload = (index: number) => {
 const handleFileChange = async (event: any) => {
   const file = event.target.files[0];
   const index = currentActiveIndex.value;
-  
+
   if (file && paymentProofs.value[index]) {
     // 1. Show preview locally
     const reader = new FileReader();
@@ -191,6 +202,65 @@ const handleContinue = () => {
       })))
     }
   });
+};
+
+const saveAsDraft = async () => {
+  try {
+    isLoading.value = true;
+
+    const payload = {
+      entity_type: 'node',
+      bundle: 'transfer',
+      title: `Brouillon - ${new Date().toLocaleDateString('fr-MG')}`,
+      field_montant_rmb: parseFloat(String(transferData.value.amountCNY || 0)),
+      field_method_payment: transferData.value.method,
+      field_status_process: "draft",
+      field_image_ariary: paymentProofs.value.map(p => (p.fid)),
+      field_cours_rmb: exchangeStore.rateHistory[0]?.tid || '',
+      status: 0,
+      token: authStore.token
+    };
+
+    const response = await fetch(`${API_BASE_URL}/api_solutions/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (data.status === true) {
+
+      const now = new Date().toLocaleDateString('fr-MG', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+
+      transactionStore.addTransaction({
+        id: String(data.item),
+        amountMGA: parseFloat(String(transferData.value.amountMGA || 0)),
+        amountCNY: parseFloat(String(transferData.value.amountCNY || 0)),
+        method: transferData.value.method,
+        status: 'draft',
+        date: now,
+        beneficiary: '—',
+        rate: exchangeStore.rateMGAtoCNY,
+        reference: 'Brouillon'
+      });
+
+      router.push('/dashboard');
+
+    } else {
+      alert('Erreur: ' + (data.message || 'Impossible de sauvegarder le brouillon.'));
+    }
+
+  } catch (err: any) {
+    console.error('Draft save error:', err);
+    alert('Erreur réseau: ' + err.message);
+  } finally {
+    isLoading.value = false;
+  }
 };
 </script>
 
@@ -251,7 +321,22 @@ ion-header ion-toolbar {
   margin-bottom: 8px;
 }
 
-.summary-item:last-child { margin-bottom: 0; }
+.summary-item:last-child {
+  margin-bottom: 0;
+}
+
+.footer-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.8fr;
+  gap: 12px;
+}
+
+.draft-btn {
+  --border-radius: 14px;
+  height: 56px;
+  font-weight: 700;
+  margin: 0;
+}
 
 .summary-item span {
   font-size: 13px;
@@ -332,7 +417,7 @@ ion-header ion-toolbar {
   border-radius: 18px;
   overflow: hidden;
   margin-bottom: 25px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .preview-box img {
@@ -405,9 +490,26 @@ ion-header ion-toolbar {
 }
 
 @media (prefers-color-scheme: dark) {
-  ion-header ion-toolbar { --background: #121212; --color: white; }
-  .summary-box, .instructions { background: #1e1e1e; border-color: #2a2a2a; }
-  .input-label, .summary-item strong, .instructions h3 { color: white; }
-  .upload-box { background: #1a1a1a; border-color: #333; }
+  ion-header ion-toolbar {
+    --background: #121212;
+    --color: white;
+  }
+
+  .summary-box,
+  .instructions {
+    background: #1e1e1e;
+    border-color: #2a2a2a;
+  }
+
+  .input-label,
+  .summary-item strong,
+  .instructions h3 {
+    color: white;
+  }
+
+  .upload-box {
+    background: #1a1a1a;
+    border-color: #333;
+  }
 }
 </style>

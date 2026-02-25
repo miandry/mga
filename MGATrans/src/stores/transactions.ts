@@ -10,7 +10,7 @@ export interface Transaction {
     date: string;
     beneficiary: string;
     rate: number;
-    proofUrl?: string;
+    proofUrl?: string | string[];
     qrCodeUrl?: string | string[];
     reference?: string;
 }
