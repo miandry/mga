@@ -36,11 +36,7 @@
           </div>
           <div class="qr-label-input">
             <label>Montant (RMB) </label>
-            <ion-input 
-              placeholder="Ex: 3000 ..." 
-              v-model="qr.label"
-              class="custom-box-input"
-            ></ion-input>
+            <ion-input placeholder="Ex: 3000 ..." v-model="qr.label" class="custom-box-input"></ion-input>
           </div>
         </div>
 
@@ -48,19 +44,13 @@
           <ion-icon :icon="addOutline"></ion-icon>
           <span>Ajouter</span>
         </div>
-        
+
         <div v-if="isLoading" class="add-qr-box loading">
           <ion-spinner name="crescent"></ion-spinner>
         </div>
       </div>
 
-      <input 
-        type="file" 
-        ref="qrInput" 
-        style="display: none" 
-        accept="image/*" 
-        @change="handleFileChange" 
-      />
+      <input type="file" ref="qrInput" style="display: none" accept="image/*" @change="handleFileChange" />
 
       <div class="info-banner">
         <ion-icon :icon="informationCircleOutline"></ion-icon>
@@ -71,11 +61,12 @@
     <ion-footer class="ion-no-border">
       <ion-toolbar class="footer-toolbar">
         <div class="footer-actions">
-          <ion-button fill="outline" color="secondary" @click="handleFinish(true)" :disabled="isSaving" class="draft-btn">
+          <ion-button fill="outline" color="secondary" @click="handleFinish(true)" :disabled="isSaving"
+            class="draft-btn">
             <ion-spinner v-if="isSavingDraft" name="crescent"></ion-spinner>
             <span v-else>Brouillon</span>
           </ion-button>
-          
+
           <ion-button class="finish-btn" @click="handleFinish(false)" :disabled="isSaving">
             <ion-spinner v-if="isSaving && !isSavingDraft" name="crescent"></ion-spinner>
             <span v-else>Terminer</span>
@@ -88,13 +79,13 @@
 </template>
 
 <script setup lang="ts">
-import { 
-  IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, 
+import {
+  IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle,
   IonContent, IonIcon, IonFooter, IonButton, IonSpinner
 } from '@ionic/vue';
-import { 
-  chevronBackOutline, addOutline, closeCircle, 
-  checkmarkCircleOutline, informationCircleOutline 
+import {
+  chevronBackOutline, addOutline, closeCircle,
+  checkmarkCircleOutline, informationCircleOutline
 } from 'ionicons/icons';
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
@@ -110,7 +101,7 @@ const exchangeStore = useExchangeStore();
 const transactionStore = useTransactionStore();
 
 const transferData = ref<any>({});
-const uploadedQRs = ref<{preview: string, fid: number, label: string}[]>([]);
+const uploadedQRs = ref<{ preview: string, fid: number, label: string }[]>([]);
 const isLoading = ref(false);
 const isSaving = ref(false);
 const isSavingDraft = ref(false);
@@ -129,7 +120,7 @@ const handleFileChange = async (event: any) => {
   if (file) {
     console.log('File selected:', file.name, file.size);
     isLoading.value = true;
-    
+
     // 1. Preview
     const reader = new FileReader();
     const previewPromise = new Promise<string>((resolve) => {
@@ -147,20 +138,20 @@ const handleFileChange = async (event: any) => {
         method: 'POST',
         body: formData,
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
       console.log('Upload response:', data);
-      
+
       if (data.status && data.fid) {
         const preview = await previewPromise;
-        uploadedQRs.value.push({ 
-          preview, 
+        uploadedQRs.value.push({
+          preview,
           fid: data.fid,
-          label: '' 
+          label: ''
         });
         console.log('QR added successfully');
       } else {
@@ -185,25 +176,28 @@ const removeQR = (index: number) => {
 const handleFinish = async (isDraft = false) => {
   isSaving.value = true;
   isSavingDraft.value = isDraft;
-  
+  let isPublished = isDraft ? 0 : 1;
+
   try {
     const proofs = transferData.value.paymentProofs ? JSON.parse(transferData.value.paymentProofs) : [];
     const proofFids = proofs.map((p: any) => p.fid);
     const references = proofs.map((p: any) => p.reference);
-
+    if (proofFids || uploadedQRs.value.length === 0 || proofFids.length === 0) {
+      isPublished = 0; // Force draft if no proofs or QR codes
+    }
     const payload = {
       entity_type: 'node',
       bundle: 'transfer',
-      title: references[0] || `Transfert ${new Date().toLocaleDateString()}`,
+      title: references[0] || `${ isPublished ? 'Transfert ' : 'Brouillon-'}${new Date().toLocaleDateString()}`,
       field_cours_rmb: exchangeStore.rateHistory[0]?.tid || '',
       field_image_ariary: proofFids,
       field_image_qrcode: uploadedQRs.value.map(qr => qr.fid),
       field_method_payment: transferData.value.method,
       field_montant_rmb: transferData.value.amountCNY,
-      field_status_priority: isDraft ? 'low' : 'normal',
-      field_status_process: isDraft ? 'draft' : 'in_process',
+      field_status_priority: isPublished ? 'low' : 'normal',
+      field_status_process: isPublished == 0 ? 'draft' : 'in_process',
       field_reference_code: references,
-      status: isDraft ? 0 : 1, // 0 = Draft (Unpublished), 1 = Published
+      status: isPublished, // 0 = Draft (Unpublished), 1 = Published
       token: authStore.token
     };
 
@@ -221,16 +215,16 @@ const handleFinish = async (isDraft = false) => {
         amountMGA: parseFloat(transferData.value.amountMGA),
         amountCNY: parseFloat(transferData.value.amountCNY),
         method: transferData.value.method,
-        status: isDraft ? 'draft' : 'in_process',
+        status: isPublished == 0 ? 'draft' : 'in_process',
         date: 'À l\'instant',
         beneficiary: 'Transaction directe',
         rate: parseFloat(transferData.value.rate ?? exchangeStore.rateMGAtoCNY),
-        proofUrl: '', 
+        proofUrl: '',
         qrCodeUrl: uploadedQRs.value[0]?.preview || '',
         reference: references[0] || 'Draft'
       });
-      
-      router.push(isDraft ? '/dashboard' : '/transaction/' + newNodeId);
+
+      router.push(isPublished ? '/dashboard' : '/transaction/' + newNodeId);
     } else {
       throw new Error(data.message || 'Failed to save transfer');
     }
@@ -316,7 +310,7 @@ ion-header ion-toolbar {
   border-radius: 18px;
   border: 1px solid #edf1f7;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .qr-preview-container {
@@ -433,7 +427,8 @@ ion-header ion-toolbar {
   gap: 12px;
 }
 
-.draft-btn, .finish-btn {
+.draft-btn,
+.finish-btn {
   --border-radius: 12px;
   height: 54px;
   font-weight: 700;
@@ -441,9 +436,22 @@ ion-header ion-toolbar {
 }
 
 @media (prefers-color-scheme: dark) {
-  ion-header ion-toolbar { --background: #121212; --color: white; }
-  .instruction-header h2 { color: white; }
-  .add-qr-box { background: #1a1a1a; border-color: #333; }
-  .info-banner { background: rgba(56, 128, 255, 0.1); }
+  ion-header ion-toolbar {
+    --background: #121212;
+    --color: white;
+  }
+
+  .instruction-header h2 {
+    color: white;
+  }
+
+  .add-qr-box {
+    background: #1a1a1a;
+    border-color: #333;
+  }
+
+  .info-banner {
+    background: rgba(56, 128, 255, 0.1);
+  }
 }
 </style>
