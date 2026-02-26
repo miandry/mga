@@ -120,8 +120,8 @@ const authStore = useAuthStore();
 const exchangeStore = useExchangeStore();
 
 const transferData = ref<any>({});
-const paymentProofs = ref<{ preview: string | null, fid: number | null, reference: string }[]>([
-  { preview: null, fid: null, reference: '' }
+const paymentProofs = ref<{ preview: string | null, fid: number | null, reference: string, url: string | null }[]>([
+  { preview: null, fid: null, reference: '', url: null }
 ]);
 const currentActiveIndex = ref(0);
 const isLoading = ref(false);
@@ -134,7 +134,7 @@ onMounted(async () => {
 });
 
 const addProof = () => {
-  paymentProofs.value.push({ preview: null, fid: null, reference: '' });
+  paymentProofs.value.push({ preview: null, fid: null, reference: '', url: null });
 };
 
 const removeProof = (index: number) => {
@@ -176,6 +176,7 @@ const handleFileChange = async (event: any) => {
       const data = await response.json();
       if (data.status && data.fid) {
         paymentProofs.value[index].fid = data.fid;
+        paymentProofs.value[index].url = data.url;
       }
     } catch (err) {
       console.error('Upload error:', err);
@@ -198,7 +199,8 @@ const handleContinue = () => {
       ...transferData.value,
       paymentProofs: JSON.stringify(paymentProofs.value.map(p => ({
         fid: p.fid,
-        reference: p.reference
+        reference: p.reference,
+        url: p.url
       })))
     }
   });
@@ -246,6 +248,7 @@ const saveAsDraft = async () => {
         status: 'draft',
         date: now,
         beneficiary: '—',
+        proofUrl: paymentProofs.value.map(p => p.url).filter(url => url !== null) as string[],
         rate: exchangeStore.rateMGAtoCNY,
         reference: 'Brouillon'
       });

@@ -185,7 +185,7 @@ const mapNode = (node: any) => {
         node.field_status_process) as any,
     date: formatDate(node.created ?? node.changed),
     reference: '',
-    proofUrl: node.field_image_ariary?.[0]?.url || '',
+    proofUrl: node.field_image_ariary?.map((img: any) => img.url) || [],
     qrCodeUrl: node.field_image_qrcode?.map((img: any) => img.url) || [],
   };
 };

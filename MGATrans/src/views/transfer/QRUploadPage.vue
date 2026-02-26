@@ -101,7 +101,7 @@ const exchangeStore = useExchangeStore();
 const transactionStore = useTransactionStore();
 
 const transferData = ref<any>({});
-const uploadedQRs = ref<{ preview: string, fid: number, label: string }[]>([]);
+const uploadedQRs = ref<{ preview: string, fid: number, label: string, url: string | null }[]>([]);
 const isLoading = ref(false);
 const isSaving = ref(false);
 const isSavingDraft = ref(false);
@@ -151,7 +151,8 @@ const handleFileChange = async (event: any) => {
         uploadedQRs.value.push({
           preview,
           fid: data.fid,
-          label: ''
+          label: '',
+          url: data.url
         });
         console.log('QR added successfully');
       } else {
@@ -177,29 +178,32 @@ const handleFinish = async (isDraft = false) => {
   isSaving.value = true;
   isSavingDraft.value = isDraft;
   let isPublished = isDraft ? 0 : 1;
-
+  console.log('Saving transfer, isDraft:', isDraft, 'isPublished:', isPublished);
   try {
     const proofs = transferData.value.paymentProofs ? JSON.parse(transferData.value.paymentProofs) : [];
     const proofFids = proofs.map((p: any) => p.fid);
+    const proofImageUrls = proofs.map((p: any) => p.url);
     const references = proofs.map((p: any) => p.reference);
-    if (proofFids || uploadedQRs.value.length === 0 || proofFids.length === 0) {
+    if (uploadedQRs.value.length == 0 || proofFids.length == 0) {
       isPublished = 0; // Force draft if no proofs or QR codes
     }
     const payload = {
       entity_type: 'node',
       bundle: 'transfer',
-      title: references[0] || `${ isPublished ? 'Transfert ' : 'Brouillon-'}${new Date().toLocaleDateString()}`,
+      title: references[0] || `${isPublished == 1 ? 'Transfert ' : 'Brouillon-'}${new Date().toLocaleDateString()}`,
       field_cours_rmb: exchangeStore.rateHistory[0]?.tid || '',
       field_image_ariary: proofFids,
       field_image_qrcode: uploadedQRs.value.map(qr => qr.fid),
       field_method_payment: transferData.value.method,
       field_montant_rmb: transferData.value.amountCNY,
-      field_status_priority: isPublished ? 'low' : 'normal',
+      field_status_priority: isPublished == 0 ? 'low' : 'normal',
       field_status_process: isPublished == 0 ? 'draft' : 'in_process',
       field_reference_code: references,
-      status: isPublished, // 0 = Draft (Unpublished), 1 = Published
+      status: isPublished == 1 ? 1 : 0, // 0 = Draft (Unpublished), 1 = Published
       token: authStore.token
     };
+
+    console.log('Payload for saving transfer:', payload);
 
     const response = await fetch(`${API_BASE_URL}/api_solutions/save`, {
       method: 'POST',
@@ -220,12 +224,30 @@ const handleFinish = async (isDraft = false) => {
         date: 'À l\'instant',
         beneficiary: 'Transaction directe',
         rate: parseFloat(transferData.value.rate ?? exchangeStore.rateMGAtoCNY),
-        proofUrl: '',
-        qrCodeUrl: uploadedQRs.value[0]?.preview || '',
+        proofUrl: proofImageUrls.length > 0 ? proofImageUrls : '',
+        qrCodeUrl: uploadedQRs.value.length > 0 ? uploadedQRs.value.map(qr => qr.url).filter(url => url !== null) as string[] : [],
         reference: references[0] || 'Draft'
       });
 
-      router.push(isPublished ? '/dashboard' : '/transaction/' + newNodeId);
+
+      console.log('ADDDD:', {
+        username: authStore.user?.name || '_',
+        id: newNodeId.toString(),
+        amountMGA: parseFloat(transferData.value.amountMGA),
+        amountCNY: parseFloat(transferData.value.amountCNY),
+        method: transferData.value.method,
+        status: isPublished == 0 ? 'draft' : 'in_process',
+        date: 'À l\'instant',
+        beneficiary: 'Transaction directe',
+        rate: parseFloat(transferData.value.rate ?? exchangeStore.rateMGAtoCNY),
+        proofUrl: proofImageUrls.length > 0 ? proofImageUrls : '',
+        qrCodeUrl: uploadedQRs.value.length > 0 ? uploadedQRs.value.map(qr => qr.url).filter(url => url !== null) as string[] : [],
+        reference: references[0] || 'Draft'
+      });
+
+
+
+      router.push(isPublished == 1 ? '/dashboard' : '/transaction/' + newNodeId);
     } else {
       throw new Error(data.message || 'Failed to save transfer');
     }

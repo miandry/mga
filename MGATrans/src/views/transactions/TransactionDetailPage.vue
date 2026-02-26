@@ -101,10 +101,10 @@
           </div>
 
           <!-- Proof Section (Details Tab) -->
-          <div v-if="tx.proofUrl" class="info-card proof-card">
+          <div v-if="tx.proofUrl && tx.proofUrl.length > 0" class="info-card proof-card">
             <h3>Justificatif envoyé</h3>
-            <div class="proof-preview">
-              <img :src="tx.proofUrl" alt="Proof" />
+            <div v-for="(url, idx) in tx.proofUrl" :key="idx" class="proof-preview">
+              <img :src="url" alt="Proof" />
             </div>
           </div>
 
@@ -124,11 +124,10 @@
 
             <div class="upload-grid">
               <div class="upload-grid">
-                <div v-if="tx.proofUrl" class="uploaded-thumb">
-                  <img :src="tx.proofUrl" />
-                  <!-- <div class="remove-overlay">
-                    <ion-icon :icon="trashOutline"></ion-icon>
-                  </div> -->
+                <div v-if="tx.proofUrl && tx.proofUrl.length > 0" class="upload-grid">
+                  <div v-for="(url, idx) in tx.proofUrl" :key="idx" class="uploaded-thumb">
+                    <img :src="url" />
+                  </div>
                 </div>
               </div>
               <div class="upload-grid">
@@ -269,8 +268,8 @@ const tx = ref<any>(null);
 const isUpdating = ref(false);
 const activeTab = ref('details');
 
-const ariaryProofs = ref<{ fid: number, preview: string }[]>([]);
-const qrProofs = ref<{ fid: number, preview: string }[]>([]);
+const ariaryProofs = ref<{ fid: number, preview: string, url: string }[]>([]);
+const qrProofs = ref<{ fid: number, preview: string, url: string }[]>([]);
 const ariaryInput = ref<HTMLInputElement | null>(null);
 const qrInput = ref<HTMLInputElement | null>(null);
 
@@ -356,9 +355,11 @@ const updateStatus = async (newStatus: string) => {
         storeTx.status = newStatus as any;
         if (newStatus === 'in_process') {
           // Update store with images
-          storeTx.proofUrl = ariaryProofs.value[0]?.preview;
-          storeTx.qrCodeUrl = qrProofs.value.map(p => p.preview);
+          storeTx.proofUrl = ariaryProofs.value.map(p => p.url);
+          storeTx.qrCodeUrl = qrProofs.value.map(p => p.url);
         }
+        ariaryProofs.value = [];
+        qrProofs.value = [];
       }
       activeTab.value = 'details'; // Go back to details to see the new status
     } else {
@@ -401,9 +402,9 @@ const handleFileUpload = async (type: 'ariary' | 'qr', event: any) => {
 
     if (data.status && data.fid) {
       if (type === 'ariary') {
-        ariaryProofs.value.push({ fid: data.fid, preview });
+        ariaryProofs.value.push({ fid: data.fid, preview, url: data.url });
       } else {
-        qrProofs.value.push({ fid: data.fid, preview });
+        qrProofs.value.push({ fid: data.fid, preview, url: data.url });
       }
     } else {
       alert('Erreur: ' + (data.message || 'Upload échoué.'));
@@ -845,6 +846,7 @@ ion-segment {
   border-radius: 12px;
   overflow: hidden;
   height: 200px;
+  margin-bottom: 10px;
 }
 
 .proof-preview img {
