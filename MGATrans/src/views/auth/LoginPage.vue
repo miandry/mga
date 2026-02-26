@@ -57,7 +57,7 @@
                 <ion-input label-placement="floating" label="Nom complet" placeholder="Jean Dupont"
                   v-model="registerForm.name"></ion-input>
               </ion-item>
-              <ion-item class="custom-input">
+              <ion-item class="custom-input" style="display: none;">
                 <ion-icon slot="start" :icon="mailOutline"></ion-icon>
                 <ion-input label-placement="floating" label="Email" placeholder="votre@email.com"></ion-input>
               </ion-item>

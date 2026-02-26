@@ -197,20 +197,26 @@
       <ion-toolbar class="action-toolbar">
         <div class="button-stack">
           <!-- Sequential Action -->
-          <ion-button v-if="tx.status === 'request_transfer'" expand="block" mode="ios" class="main-action-btn"
-            :disabled="isUpdating" @click="updateStatus('in_process')">
+          <ion-button v-if="tx.status === 'request_transfer' && authStore.hasRole('administrator')" expand="block"
+            mode="ios" class="main-action-btn" :disabled="isUpdating" @click="updateStatus('in_process')">
             <ion-spinner v-if="isUpdating" name="crescent"></ion-spinner>
             <span v-else>Démarrer le transfert</span>
           </ion-button>
 
-          <ion-button v-if="tx.status === 'in_process'" expand="block" mode="ios" class="main-action-btn"
-            :disabled="isUpdating" @click="updateStatus('payed')">
-            <ion-spinner v-if="isUpdating" name="crescent"></ion-spinner>
-            <span v-else>Confirmer le paiement</span>
-          </ion-button>
+          <div v-if="tx.status === 'in_process' && authStore.hasRole('administrator')" class="dual-action-row">
+            <!-- @click="updateStatus('request_transfer')" -->
+            <ion-button expand="block" mode="ios" fill="outline" class="cancel-action-btn" :disabled="isUpdating">
+              Annuler
+            </ion-button>
+            <ion-button expand="block" mode="ios" class="main-action-btn" :disabled="isUpdating"
+              @click="updateStatus('payed')">
+              <ion-spinner v-if="isUpdating" name="crescent"></ion-spinner>
+              <span v-else>Confirmer</span>
+            </ion-button>
+          </div>
 
-          <ion-button v-if="tx.status === 'payed'" expand="block" mode="ios" class="main-action-btn confirmed-btn"
-            :disabled="isUpdating" @click="updateStatus('confirmed')">
+          <ion-button v-if="tx.status === 'payed' && authStore.hasRole('administrator')" expand="block" mode="ios"
+            class="main-action-btn confirmed-btn" :disabled="isUpdating" @click="updateStatus('confirmed')">
             <ion-spinner v-if="isUpdating" name="crescent"></ion-spinner>
             <span v-else>Valider définitivement</span>
           </ion-button>
@@ -624,6 +630,23 @@ ion-segment {
   font-weight: 600;
   text-align: center;
   margin-top: 5px;
+}
+
+.dual-action-row {
+  display: flex;
+  align-content: center;
+  gap: 10px;
+}
+
+.dual-action-row ion-button {
+  flex: 1;
+}
+
+.cancel-action-btn {
+  --border-radius: 14px;
+  height: 54px;
+  font-weight: 700;
+  font-size: 16px;
 }
 
 .shadow-footer {

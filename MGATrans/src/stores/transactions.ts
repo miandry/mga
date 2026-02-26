@@ -3,6 +3,7 @@ import { ref } from 'vue';
 
 export interface Transaction {
     id: string;
+    username: string;
     amountMGA: number;
     amountCNY: number;
     method: 'WeChat' | 'Alipay';

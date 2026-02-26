@@ -24,7 +24,8 @@
         <p class="balance-label">Total transféré (RMB)</p>
         <h1 class="balance-amount">
           <span v-if="isLoading">...</span>
-          <span v-else>{{ totalCNY.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+          <span v-else>{{ totalCNY.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            }}</span>
           <span class="currency-unit">CNY</span>
         </h1>
         <div class="card-footer">
@@ -57,7 +58,8 @@
       </div>
 
       <div class="transactions-list">
-        <div v-for="tx in recentTransactions" :key="tx.id" class="tx-item" @click="router.push('/transaction/' + tx.id)">
+        <div v-for="tx in recentTransactions" :key="tx.id" class="tx-item"
+          @click="router.push('/transaction/' + tx.id)">
           <div class="tx-icon" :class="tx.status">
             <ion-icon :icon="txIcon(tx.status)"></ion-icon>
           </div>
@@ -70,7 +72,7 @@
             <p class="cny">{{ tx.amountCNY }} CNY</p>
           </div>
         </div>
-        
+
         <!-- Loading skeleton -->
         <div v-if="isLoading" class="loading-state">
           <ion-spinner name="crescent"></ion-spinner>
@@ -98,16 +100,16 @@
 </template>
 
 <script setup lang="ts">
-import { 
-  IonPage, IonContent, IonButton, IonIcon, 
-  IonButtons, IonMenuButton, IonSpinner 
+import {
+  IonPage, IonContent, IonButton, IonIcon,
+  IonButtons, IonMenuButton, IonSpinner
 } from '@ionic/vue';
-import { 
-  notificationsOutline, 
-  refreshOutline, 
-  trendingUpOutline, 
+import {
+  notificationsOutline,
+  refreshOutline,
+  trendingUpOutline,
   checkmarkCircle,
-  timeOutline, 
+  timeOutline,
   closeCircle,
   receiptOutline,
   alertCircleOutline
@@ -136,10 +138,10 @@ const totalMGA = ref(0);
 const txIcon = (status: string) => {
   switch (status) {
     case 'confirmed': return checkmarkCircle;
-    case 'payer':     return checkmarkCircle;
-    case 'en_cours':  return timeOutline;
+    case 'payer': return checkmarkCircle;
+    case 'en_cours': return timeOutline;
     case 'request_transfer': return timeOutline;
-    default:          return closeCircle; // draft
+    default: return closeCircle; // draft
   }
 };
 
@@ -172,19 +174,19 @@ const mapNode = (node: any) => {
   }
 
   return {
-    id:          String(node.nid ?? node.id ?? ''),
+    id: String(node.nid ?? node.id ?? ''),
     beneficiary: node.title ?? '—',
-    amountMGA:   cours > 0 ? Math.round(cours * rmb) : 0,
-    amountCNY:   rmb,
-    rate:        cours,
-    method:      (node.field_method_payment === 'WeChat' ? 'WeChat' : 'Alipay') as 'WeChat' | 'Alipay',
-    status:      (node.field_status_process === 'en_cours' || node.field_status_process === 'in_process' ? 'in_process' : 
-                  node.field_status_process === 'payer' || node.field_status_process === 'payed' ? 'payed' : 
-                  node.field_status_process) as any,
-    date:        formatDate(node.created ?? node.changed),
-    reference:   '',
-    proofUrl:    node.field_image_ariary?.[0]?.url || '',
-    qrCodeUrl:   node.field_image_qrcode?.map((img: any) => img.url) || [],
+    amountMGA: cours > 0 ? Math.round(cours * rmb) : 0,
+    amountCNY: rmb,
+    rate: cours,
+    method: (node.field_method_payment === 'WeChat' ? 'WeChat' : 'Alipay') as 'WeChat' | 'Alipay',
+    status: (node.field_status_process === 'en_cours' || node.field_status_process === 'in_process' ? 'in_process' :
+      node.field_status_process === 'payer' || node.field_status_process === 'payed' ? 'payed' :
+        node.field_status_process) as any,
+    date: formatDate(node.created ?? node.changed),
+    reference: '',
+    proofUrl: node.field_image_ariary?.[0]?.url || '',
+    qrCodeUrl: node.field_image_qrcode?.map((img: any) => img.url) || [],
   };
 };
 
@@ -192,21 +194,37 @@ onMounted(async () => {
   await exchangeStore.init();
   isLoading.value = true;
   loadError.value = '';
+
+  // =========================
+  // Fetch Summary
+  // =========================
   try {
-    // 1. Fetch Summary
-    const summaryResponse = await fetch(`${API_BASE_URL}/api/mga/user/summary?token=${authStore.token}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-    });
+    const summaryResponse = await fetch(
+      `${API_BASE_URL}/api/mga/user/summary?token=${authStore.token}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+      }
+    );
+
     const summaryData = await summaryResponse.json();
+
     if (summaryData.total_rmb !== undefined) {
       totalCNY.value = summaryData.total_rmb;
       totalMGA.value = summaryData.total_mga;
     }
 
-    // 2. Fetch Recent Transactions
+  } catch (err: any) {
+    console.error('Summary load error:', err);
+    // loadError.value = 'Impossible de charger le résumé.';
+  }
+
+  // =========================
+  // Fetch Recent Transactions
+  // =========================
+  try {
     const response = await fetch(
       `${API_BASE_URL}/api_solutions/api/v2/node/transfer?sort[val]=created&sort[op]=DESC&offset=5&token=${authStore.token}`,
       {
@@ -216,23 +234,30 @@ onMounted(async () => {
         },
       }
     );
+
     const data = await response.json();
-    // Accept [ ] directly or { rows: [] } envelope
+
     const rows = Array.isArray(data) ? data : (data.rows ?? []);
+
     recentTransactions.value = rows.map(mapNode);
+
     // Sync to store for detail page
     rows.forEach((n: any) => {
       const tx = mapNode(n);
       const exists = transactionStore.transactions.find(t => t.id === tx.id);
-      if (!exists) transactionStore.addTransaction({ ...tx, reference: '' });
+      if (!exists) {
+        transactionStore.addTransaction({ ...tx, reference: '' });
+      }
     });
+
   } catch (err: any) {
-    console.error('Dashboard load error:', err);
-    loadError.value = 'Impossible de charger les données.';
-  } finally {
-    isLoading.value = false;
+    console.error('Transactions load error:', err);
+    loadError.value = 'Impossible de charger les transactions récentes.';
   }
+
+  isLoading.value = false;
 });
+
 </script>
 
 <style scoped>
@@ -437,28 +462,79 @@ onMounted(async () => {
   margin-right: 15px;
 }
 
-.tx-icon.confirmed        { background: rgba(45, 211, 111, 0.12); color: #2dd36f; }
-.tx-icon.payer            { background: rgba(112, 26, 211, 0.12); color: #7b2ff7; }
-.tx-icon.en_cours         { background: rgba(56, 128, 255, 0.12); color: #3880ff; }
-.tx-icon.request_transfer { background: rgba(255, 196, 9,  0.12); color: #e0a800; }
-.tx-icon.draft            { background: rgba(136,146,160, 0.15); color: #8892a0; }
+.tx-icon.confirmed {
+  background: rgba(45, 211, 111, 0.12);
+  color: #2dd36f;
+}
+
+.tx-icon.payed {
+  background: rgba(112, 26, 211, 0.12);
+  color: #7b2ff7;
+}
+
+.tx-icon.in_process {
+  background: rgba(56, 128, 255, 0.12);
+  color: #3880ff;
+}
+
+.tx-icon.request_transfer {
+  background: rgba(255, 196, 9, 0.12);
+  color: #e0a800;
+}
+
+.tx-icon.draft {
+  background: rgba(136, 146, 160, 0.15);
+  color: #8892a0;
+}
 
 .loading-state {
   text-align: center;
   padding: 40px 0;
   color: #8892a0;
 }
-.loading-state ion-spinner { font-size: 32px; margin-bottom: 8px; }
 
-.tx-icon ion-icon { font-size: 22px; }
+.loading-state ion-spinner {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
 
-.tx-info { flex: 1; }
-.tx-info h4 { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: #1e2a4a; }
-.tx-info p { margin: 0; font-size: 12px; color: #8892a0; }
+.tx-icon ion-icon {
+  font-size: 22px;
+}
 
-.tx-amount { text-align: right; }
-.tx-amount .mga { margin: 0; font-size: 15px; font-weight: 700; color: #1e2a4a; }
-.tx-amount .cny { margin: 0; font-size: 12px; color: #8892a0; }
+.tx-info {
+  flex: 1;
+}
+
+.tx-info h4 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e2a4a;
+}
+
+.tx-info p {
+  margin: 0;
+  font-size: 12px;
+  color: #8892a0;
+}
+
+.tx-amount {
+  text-align: right;
+}
+
+.tx-amount .mga {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e2a4a;
+}
+
+.tx-amount .cny {
+  margin: 0;
+  font-size: 12px;
+  color: #8892a0;
+}
 
 .empty-state {
   text-align: center;
@@ -473,12 +549,24 @@ onMounted(async () => {
 }
 
 @media (prefers-color-scheme: dark) {
-  .dashboard-content { --background: #121212; }
-  .header-section h3 { color: white; }
-  .rate-card, .tx-item { 
-    background: #1e1e1e; 
-    border-color: #2a2a2a; 
+  .dashboard-content {
+    --background: #121212;
   }
-  .tx-info h4, .tx-amount .mga, .section-header h2 { color: white; }
+
+  .header-section h3 {
+    color: white;
+  }
+
+  .rate-card,
+  .tx-item {
+    background: #1e1e1e;
+    border-color: #2a2a2a;
+  }
+
+  .tx-info h4,
+  .tx-amount .mga,
+  .section-header h2 {
+    color: white;
+  }
 }
 </style>

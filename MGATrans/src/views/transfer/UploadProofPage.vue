@@ -239,6 +239,7 @@ const saveAsDraft = async () => {
 
       transactionStore.addTransaction({
         id: String(data.item),
+        username: authStore.user?.name || '_',
         amountMGA: parseFloat(String(transferData.value.amountMGA || 0)),
         amountCNY: parseFloat(String(transferData.value.amountCNY || 0)),
         method: transferData.value.method,

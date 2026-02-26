@@ -75,11 +75,12 @@
                 <ion-icon :icon="tx.method === 'WeChat' ? chatbubbleEllipses : card"></ion-icon>
               </div>
               <div class="item-info">
+                <p class="payment-method"><span class="username-owner">{{ tx.username }}</span> - Via {{ tx.method }}</p>
                 <h4>{{ tx.amountCNY.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) }} <span>CNY</span></h4>
-                <p class="payment-method">Via {{ tx.method }}</p>
                 <p class="rate">Cours: {{ tx.rate.toLocaleString() }} MGA</p>
               </div>
               <div class="item-amounts">
+                <p class=""></p>
                 <p class="mga">≈ {{ tx.amountMGA.toLocaleString() }} MGA</p>
                 <div class="status-tag" :class="tx.status">{{ statusLabel(tx.status) }}</div>
               </div>
@@ -167,6 +168,7 @@ const mapNode = (node: any): Transaction => {
 
   return {
     id:          String(node.nid ?? node.id ?? ''),
+    username:   node.uid.name ?? '—',
     beneficiary: node.title ?? '—',
     amountMGA:   cours > 0 ? Math.round(cours * rmb) : 0,
     amountCNY:   rmb,
@@ -261,7 +263,6 @@ onMounted(() => {
 
 const filteredTransactions = computed(() => {
   let list = transactions.value;
-  
   // Status filter (Now handled by backend, so this is technically redundant but kept safe 
   // in case of race conditions during filter change, though fetchTransactions() is watched)
   // if (filterStatus.value !== 'all') {
@@ -277,7 +278,6 @@ const filteredTransactions = computed(() => {
       tx.method.toLowerCase().includes(q)
     );
   }
-  
   return list;
 });
 
@@ -356,6 +356,11 @@ ion-segment-button {
   margin: 0;
 }
 
+.username-owner {
+  color: var(--ion-color-primary) !important;
+  font-weight: 600;
+}
+
 .status-skeleton {
   display: flex;
   justify-content: flex-end;
@@ -419,7 +424,7 @@ ion-segment-button {
 .status-tag.confirmed    { background: rgba(45, 211, 111, 0.12); color: #2dd36f; }
 .status-tag.in_process   { background: rgba(56, 128, 255, 0.12); color: #3880ff; }
 .status-tag.request_transfer { background: rgba(255, 196, 9, 0.12); color: #e0a800; }
-.status-tag.payer        { background: rgba(112, 26, 211, 0.12); color: #7b2ff7; }
+.status-tag.payed        { background: rgba(112, 26, 211, 0.12); color: #7b2ff7; }
 .status-tag.draft        { background: rgba(136, 146, 160, 0.15); color: #8892a0; }
 
 .empty-history {

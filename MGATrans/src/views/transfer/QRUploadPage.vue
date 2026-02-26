@@ -211,6 +211,7 @@ const handleFinish = async (isDraft = false) => {
     if (data.status === true) {
       const newNodeId = data.item;
       transactionStore.addTransaction({
+        username: authStore.user?.name || '_',
         id: newNodeId.toString(),
         amountMGA: parseFloat(transferData.value.amountMGA),
         amountCNY: parseFloat(transferData.value.amountCNY),

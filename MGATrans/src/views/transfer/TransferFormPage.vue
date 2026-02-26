@@ -223,6 +223,7 @@ const saveAsDraft = async () => {
       const now = new Date().toLocaleDateString('fr-MG', { day: '2-digit', month: 'short', year: 'numeric' });
       transactionStore.addTransaction({
         id: String(data.item),
+        username: authStore.user?.name || '_',
         amountMGA: parseFloat(String(finalMGA)),
         amountCNY: parseFloat(String(finalCNY)),
         method: method.value as 'WeChat' | 'Alipay',

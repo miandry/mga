@@ -4,6 +4,7 @@ import { API_BASE_URL } from '@/services/api';
 
 export const useAuthStore = defineStore('auth', () => {
     const user = ref<any | null>(null);
+    const roles = ref<string[]>([]);
     const token = ref<string | null>(null);
     const isAuthenticated = ref(false);
     const loading = ref(false);
@@ -28,6 +29,9 @@ export const useAuthStore = defineStore('auth', () => {
                 const userData = data;
                 user.value = userData;
                 isAuthenticated.value = true;
+                // Set roles ici
+                setRoles(userData);
+
                 localStorage.setItem('user', JSON.stringify(userData));
                 if (data.token) {
                     token.value = data.token;
@@ -65,6 +69,8 @@ export const useAuthStore = defineStore('auth', () => {
                 const userData = data;
                 user.value = userData;
                 isAuthenticated.value = true;
+                // Set roles ici
+                setRoles(userData);
                 localStorage.setItem('user', JSON.stringify(userData));
                 if (data.token) {
                     localStorage.setItem('token', data.token);
@@ -92,17 +98,33 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.removeItem('token');
     }
 
+    // Computed pratique pour vérifier un rôle
+    const hasRole = (role: string) => {
+        return roles.value.includes(role);
+    };
+
+    function setRoles(userData: any) {
+        if (userData?.data?.roles && Array.isArray(userData.data.roles)) {
+            roles.value = userData.data.roles;
+        } else {
+            roles.value = ['authenticated_user'];
+        }
+    }
+
     function init() {
         const savedUser = localStorage.getItem('user');
         const savedToken = localStorage.getItem('token');
         if (savedUser) {
-            user.value = JSON.parse(savedUser);
+            const parsedUser = JSON.parse(savedUser);
+            user.value = parsedUser;
             isAuthenticated.value = true;
+            // Important : restaurer les rôles au refresh
+            setRoles(parsedUser);
         }
         if (savedToken) {
             token.value = savedToken;
         }
     }
 
-    return { user, token, isAuthenticated, loading, error, login, register, logout, init };
+    return { user, token, isAuthenticated, loading, error, login, register, logout, init, hasRole, roles};
 });
