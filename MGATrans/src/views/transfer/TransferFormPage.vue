@@ -204,6 +204,7 @@ const saveAsDraft = async () => {
       entity_type: 'node',
       bundle: 'transfer',
       title: `Brouillon - ${new Date().toLocaleDateString('fr-MG')}`,
+      uid: authStore.user.id,
       field_montant_rmb: parseFloat(String(finalCNY)),
       field_method_payment: method.value,
       field_status_process: "draft",

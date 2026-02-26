@@ -101,10 +101,19 @@
           </div>
 
           <!-- Proof Section (Details Tab) -->
-          <div v-if="tx.proofUrl && tx.proofUrl.length > 0" class="info-card proof-card">
+          <!-- Si c'est un array -->
+          <div v-if="Array.isArray(tx.proofUrl) && tx.proofUrl.length > 0" class="info-card proof-card">
             <h3>Justificatif envoyé</h3>
             <div v-for="(url, idx) in tx.proofUrl" :key="idx" class="proof-preview">
               <img :src="url" alt="Proof" />
+            </div>
+          </div>
+
+          <!--Si c'est un string (une seule image) -->
+          <div v-else-if="typeof tx.proofUrl === 'string' && tx.proofUrl.length > 0" class="info-card proof-card">
+            <h3>Justificatif envoyé</h3>
+            <div class="proof-preview">
+              <img :src="tx.proofUrl" alt="Proof" />
             </div>
           </div>
 
@@ -124,11 +133,21 @@
 
             <div class="upload-grid">
               <div class="upload-grid">
-                <div v-if="tx.proofUrl && tx.proofUrl.length > 0" class="upload-grid">
+
+                <!-- Array -->
+                <div v-if="Array.isArray(tx.proofUrl) && tx.proofUrl.length > 0" class="upload-grid">
                   <div v-for="(url, idx) in tx.proofUrl" :key="idx" class="uploaded-thumb">
                     <img :src="url" />
                   </div>
                 </div>
+
+                <!-- String -->
+                <div v-else-if="typeof tx.proofUrl === 'string' && tx.proofUrl.length > 0" class="upload-grid">
+                  <div class="uploaded-thumb">
+                    <img :src="tx.proofUrl" />
+                  </div>
+                </div>
+
               </div>
               <div class="upload-grid">
                 <div v-for="(img, idx) in ariaryProofs" :key="idx" class="uploaded-thumb">
@@ -204,7 +223,8 @@
 
           <div v-if="tx.status === 'in_process' && authStore.hasRole('administrator')" class="dual-action-row">
             <!-- @click="updateStatus('request_transfer')" -->
-            <ion-button expand="block" mode="ios" fill="outline" class="cancel-action-btn" :disabled="isUpdating">
+            <ion-button expand="block" mode="ios" fill="outline" class="cancel-action-btn" :disabled="isUpdating"
+              @click="updateStatus('canceled')">
               Annuler
             </ion-button>
             <ion-button expand="block" mode="ios" class="main-action-btn" :disabled="isUpdating"
@@ -213,6 +233,15 @@
               <span v-else>Confirmer</span>
             </ion-button>
           </div>
+
+          <!-- Authenticated User: Request Cancel -->
+          <ion-button
+            v-if="tx.status === 'in_process' && authStore.hasRole('authenticated_user') && !authStore.hasRole('administrator')"
+            expand="block" mode="ios" fill="outline" color="danger" class="cancel-action-btn" :disabled="isUpdating"
+            @click="updateStatus('cancel_requested')">
+            <ion-spinner v-if="isUpdating" name="crescent"></ion-spinner>
+            <span v-else>Demander une annulation</span>
+          </ion-button>
 
           <ion-button v-if="tx.status === 'payed' && authStore.hasRole('administrator')" expand="block" mode="ios"
             class="main-action-btn confirmed-btn" :disabled="isUpdating" @click="updateStatus('confirmed')">
@@ -258,6 +287,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useTransactionStore } from '@/stores/transactions';
 import { API_BASE_URL } from '@/services/api';
+import { uid } from 'chart.js/dist/helpers/helpers.core';
 
 const route = useRoute();
 const router = useRouter();
@@ -303,6 +333,8 @@ const statusLabel = computed(() => {
     in_process: 'En cours de traitement',
     payed: 'Paiement effectué',
     confirmed: 'Transfert Validé',
+    canceled: 'Transfert Annulé',
+    cancel_requested: 'Demande d\'annulation',
   };
   return labels[tx.value?.status] ?? 'Statut inconnu';
 });
@@ -314,6 +346,8 @@ const statusDescription = computed(() => {
     in_process: 'Nos agents traitent actuellement votre transfert.',
     payed: 'Le paiement a été effectué. Nous validons les fonds.',
     confirmed: 'Transfert validé avec succès ! Les fonds sont prêts.',
+    canceled: 'Transfert annulé par l\'utilisateur.',
+    cancel_requested: 'En attente de validation par un administrateur.',
   };
   return desc[tx.value?.status] ?? '';
 });
@@ -328,6 +362,7 @@ const updateStatus = async (newStatus: string) => {
       entity_type: 'node',
       bundle: 'transfer',
       title: `Transfert ${new Date().toLocaleDateString()}`,
+      uid: authStore.user.id,
       nid: tx.value.id, // Nid for update
       field_status_process: backendStatus,
       token: authStore.token,
@@ -502,6 +537,14 @@ const handleShare = () => {
 
 .status-banner.confirmed {
   background: linear-gradient(135deg, #2dd36f 0%, #28ba62 100%);
+}
+
+.status-banner.canceled {
+  background: linear-gradient(135deg, #eb445a 0%, #c62e44 100%);
+}
+
+.status-banner.cancel_requested {
+  background: linear-gradient(135deg, #ff6b6b 0%, #d90429 100%);
 }
 
 .status-icon {

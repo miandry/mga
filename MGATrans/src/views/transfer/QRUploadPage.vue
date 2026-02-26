@@ -190,6 +190,7 @@ const handleFinish = async (isDraft = false) => {
     const payload = {
       entity_type: 'node',
       bundle: 'transfer',
+      uid: authStore.user.id,
       title: references[0] || `${isPublished == 1 ? 'Transfert ' : 'Brouillon-'}${new Date().toLocaleDateString()}`,
       field_cours_rmb: exchangeStore.rateHistory[0]?.tid || '',
       field_image_ariary: proofFids,

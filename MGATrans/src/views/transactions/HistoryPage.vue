@@ -29,6 +29,9 @@
           <ion-segment-button value="confirmed">
             <ion-label>Confirmé</ion-label>
           </ion-segment-button>
+          <ion-segment-button value="canceled">
+            <ion-label>Annulé</ion-label>
+          </ion-segment-button>
         </ion-segment>
       </div>
 
@@ -49,10 +52,13 @@
                 <p><ion-skeleton-text animated style="width: 60px;"></ion-skeleton-text></p>
               </div>
               <div class="item-amounts">
-                <p class="cny"><ion-skeleton-text animated style="width: 70px; margin-left: auto;"></ion-skeleton-text></p>
-                <p class="mga"><ion-skeleton-text animated style="width: 50px; margin-left: auto;"></ion-skeleton-text></p>
+                <p class="cny"><ion-skeleton-text animated style="width: 70px; margin-left: auto;"></ion-skeleton-text>
+                </p>
+                <p class="mga"><ion-skeleton-text animated style="width: 50px; margin-left: auto;"></ion-skeleton-text>
+                </p>
                 <div class="status-skeleton">
-                  <ion-skeleton-text animated style="width: 60px; height: 18px; border-radius: 4px; margin-left: auto;"></ion-skeleton-text>
+                  <ion-skeleton-text animated
+                    style="width: 60px; height: 18px; border-radius: 4px; margin-left: auto;"></ion-skeleton-text>
                 </div>
               </div>
             </div>
@@ -68,14 +74,16 @@
 
         <!-- Transactions List -->
         <template v-else>
-          <div v-for="tx in filteredTransactions" :key="tx.id" class="history-item" @click="router.push('/transaction/' + tx.id)">
+          <div v-for="tx in filteredTransactions" :key="tx.id" class="history-item"
+            @click="router.push('/transaction/' + tx.id)">
             <div class="item-date">{{ tx.date }}</div>
             <div class="item-main">
               <div class="method-icon" :class="tx.method.toLowerCase()">
                 <ion-icon :icon="tx.method === 'WeChat' ? chatbubbleEllipses : card"></ion-icon>
               </div>
               <div class="item-info">
-                <p class="payment-method"><span class="username-owner">{{ tx.username }}</span> - Via {{ tx.method }}</p>
+                <p class="payment-method"><span class="username-owner">{{ tx.username }}</span> - Via {{ tx.method }}
+                </p>
                 <h4>{{ tx.amountCNY.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) }} <span>CNY</span></h4>
                 <p class="rate">Cours: {{ tx.rate.toLocaleString() }} MGA</p>
               </div>
@@ -96,7 +104,8 @@
         </template>
 
         <ion-infinite-scroll @ionInfinite="handleInfinite" :disabled="!hasMore">
-          <ion-infinite-scroll-content loading-spinner="bubbles" loading-text="Chargement..."></ion-infinite-scroll-content>
+          <ion-infinite-scroll-content loading-spinner="bubbles"
+            loading-text="Chargement..."></ion-infinite-scroll-content>
         </ion-infinite-scroll>
       </div>
     </ion-content>
@@ -106,14 +115,14 @@
 </template>
 
 <script setup lang="ts">
-import { 
-  IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, 
-  IonContent, IonSearchbar, IonSegment, IonSegmentButton, IonLabel, 
+import {
+  IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle,
+  IonContent, IonSearchbar, IonSegment, IonSegmentButton, IonLabel,
   IonIcon, IonButton, IonSpinner, IonInfiniteScroll, IonInfiniteScrollContent,
   IonSkeletonText
 } from '@ionic/vue';
-import { 
-  chevronBackOutline, chatbubbleEllipses, card, 
+import {
+  chevronBackOutline, chatbubbleEllipses, card,
   receiptOutline, alertCircleOutline
 } from 'ionicons/icons';
 import { ref, computed, onMounted, watch } from 'vue';
@@ -167,20 +176,20 @@ const mapNode = (node: any): Transaction => {
   }
 
   return {
-    id:          String(node.nid ?? node.id ?? ''),
-    username:   node.uid.name ?? '—',
+    id: String(node.nid ?? node.id ?? ''),
+    username: node.uid.name ?? '—',
     beneficiary: node.title ?? '—',
-    amountMGA:   cours > 0 ? Math.round(cours * rmb) : 0,
-    amountCNY:   rmb,
-    rate:        cours,
-    method:      (node.field_method_payment === 'WeChat' ? 'WeChat' : 'Alipay') as 'WeChat' | 'Alipay',
-    status:      (node.field_status_process === 'en_cours' || node.field_status_process === 'in_process' ? 'in_process' : 
-                  node.field_status_process === 'payer' || node.field_status_process === 'payed' ? 'payed' : 
-                  node.field_status_process) as Transaction['status'],
-    date:        formatDate(node.created ?? node.changed),
-    reference:   '',
-    proofUrl:    node.field_image_ariary?.[0]?.url || '',
-    qrCodeUrl:   node.field_image_qrcode?.map((img: any) => img.url) || [],
+    amountMGA: cours > 0 ? Math.round(cours * rmb) : 0,
+    amountCNY: rmb,
+    rate: cours,
+    method: (node.field_method_payment === 'WeChat' ? 'WeChat' : 'Alipay') as 'WeChat' | 'Alipay',
+    status: (node.field_status_process === 'en_cours' || node.field_status_process === 'in_process' ? 'in_process' :
+      node.field_status_process === 'payer' || node.field_status_process === 'payed' ? 'payed' :
+        node.field_status_process) as Transaction['status'],
+    date: formatDate(node.created ?? node.changed),
+    reference: '',
+    proofUrl: node.field_image_ariary?.[0]?.url || '',
+    qrCodeUrl: node.field_image_qrcode?.map((img: any) => img.url) || [],
   };
 };
 
@@ -191,20 +200,25 @@ const fetchTransactions = async (isLoadMore = false) => {
     hasMore.value = true;
     transactions.value = [];
   }
-  
+
   loadError.value = '';
-  
+
   try {
-    let url = `${API_BASE_URL}/api_solutions/api/v2/node/transfer?sort[val]=created&sort[op]=DESC&offset=${itemsPerPage}&pager=${currentPage.value}&token=${authStore.token}`;
-    
+    let url = '';
+    if (authStore.hasRole('administrator')) {
+      url = `${API_BASE_URL}/api_solutions/api/v2/node/transfer?sort[val]=created&sort[op]=DESC&offset=${itemsPerPage}&pager=${currentPage.value}&token=${authStore.token}`;
+    } else if (authStore.hasRole('authenticated_user')) {
+      url = `${API_BASE_URL}/api_solutions/api/v2/node/transfer?sort[val]=created&sort[op]=DESC&offset=${itemsPerPage}&pager=${currentPage.value}&filters[uid][val]=${authStore.user.id}`;
+    }
+
     // Add backend status filter if not "all"
     if (filterStatus.value !== 'all') {
       let backendStatus = filterStatus.value;
       // No mapping needed if backend already uses in_process/payed
       // But keeping a loose mapping for robustness
-      if (backendStatus === 'in_process') backendStatus = 'in_process'; 
-      if (backendStatus === 'payed') backendStatus = 'payed';
-      
+      // if (backendStatus === 'in_process') backendStatus = 'in_process';
+      // if (backendStatus === 'payed') backendStatus = 'payed';
+
       url += `&filters[field_status_process][val]=${backendStatus}`;
     }
 
@@ -214,9 +228,9 @@ const fetchTransactions = async (isLoadMore = false) => {
     });
     const data = await response.json();
     const rows = Array.isArray(data) ? data : (data.rows ?? []);
-    
+
     const mapped = rows.map(mapNode);
-    
+
     if (isLoadMore) {
       transactions.value = [...transactions.value, ...mapped];
     } else {
@@ -227,7 +241,7 @@ const fetchTransactions = async (isLoadMore = false) => {
     if (mapped.length < itemsPerPage) {
       hasMore.value = false;
     }
-    
+
     // Sync to store
     mapped.forEach((tx: Transaction) => {
       const exists = transactionStore.transactions.find(t => t.id === tx.id);
@@ -246,7 +260,7 @@ const handleInfinite = async (ev: any) => {
     ev.target.complete();
     return;
   }
-  
+
   currentPage.value++;
   await fetchTransactions(true);
   ev.target.complete();
@@ -268,12 +282,12 @@ const filteredTransactions = computed(() => {
   // if (filterStatus.value !== 'all') {
   //   list = list.filter((tx: Transaction) => tx.status === filterStatus.value);
   // }
-  
+
   // Search filter
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase();
-    list = list.filter((tx: Transaction) => 
-      tx.beneficiary.toLowerCase().includes(q) || 
+    list = list.filter((tx: Transaction) =>
+      tx.beneficiary.toLowerCase().includes(q) ||
       tx.id.toLowerCase().includes(q) ||
       tx.method.toLowerCase().includes(q)
     );
@@ -385,7 +399,7 @@ ion-segment-button {
   padding: 15px;
   display: flex;
   align-items: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
   border: 1px solid #edf1f7;
 }
 
@@ -400,17 +414,56 @@ ion-segment-button {
   margin-right: 15px;
 }
 
-.wechat { background: #07c160; color: white; }
-.alipay { background: #00a0e9; color: white; }
+.wechat {
+  background: #07c160;
+  color: white;
+}
 
-.item-info { flex: 1; }
-.item-info h4 { margin: 0 0 2px; font-size: 15px; font-weight: 700; color: #1e2a4a; }
-.item-info p { margin: 0; font-size: 12px; color: #8892a0; }
+.alipay {
+  background: #00a0e9;
+  color: white;
+}
 
-.item-amounts { text-align: right; }
-.item-amounts .cny { margin: 0; font-size: 16px; font-weight: 800; color: #1e2a4a; }
-.item-amounts .cny span { font-size: 10px; color: #8892a0; margin-left: 2px; }
-.item-amounts .mga { margin: 0 5px 5px 0; font-size: 11px; font-weight: 600; color: #8892a0; }
+.item-info {
+  flex: 1;
+}
+
+.item-info h4 {
+  margin: 0 0 2px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e2a4a;
+}
+
+.item-info p {
+  margin: 0;
+  font-size: 12px;
+  color: #8892a0;
+}
+
+.item-amounts {
+  text-align: right;
+}
+
+.item-amounts .cny {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #1e2a4a;
+}
+
+.item-amounts .cny span {
+  font-size: 10px;
+  color: #8892a0;
+  margin-left: 2px;
+}
+
+.item-amounts .mga {
+  margin: 0 5px 5px 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #8892a0;
+}
 
 .status-tag {
   font-size: 9px;
@@ -421,11 +474,35 @@ ion-segment-button {
   display: inline-block;
 }
 
-.status-tag.confirmed    { background: rgba(45, 211, 111, 0.12); color: #2dd36f; }
-.status-tag.in_process   { background: rgba(56, 128, 255, 0.12); color: #3880ff; }
-.status-tag.request_transfer { background: rgba(255, 196, 9, 0.12); color: #e0a800; }
-.status-tag.payed        { background: rgba(112, 26, 211, 0.12); color: #7b2ff7; }
-.status-tag.draft        { background: rgba(136, 146, 160, 0.15); color: #8892a0; }
+.status-tag.confirmed {
+  background: rgba(45, 211, 111, 0.12);
+  color: #2dd36f;
+}
+
+.status-tag.in_process {
+  background: rgba(56, 128, 255, 0.12);
+  color: #3880ff;
+}
+
+.status-tag.request_transfer {
+  background: rgba(255, 196, 9, 0.12);
+  color: #e0a800;
+}
+
+.status-tag.payed {
+  background: rgba(112, 26, 211, 0.12);
+  color: #7b2ff7;
+}
+
+.status-tag.draft {
+  background: rgba(136, 146, 160, 0.15);
+  color: #8892a0;
+}
+
+.status-tag.canceled {
+  background: rgba(235, 68, 90, 0.12);
+  color: #eb445a;
+}
 
 .empty-history {
   text-align: center;
@@ -433,9 +510,23 @@ ion-segment-button {
   color: #8892a0;
 }
 
-.empty-history ion-icon { font-size: 64px; opacity: 0.2; margin-bottom: 15px; }
-.empty-history h3 { font-size: 18px; font-weight: 700; color: #1e2a4a; margin-bottom: 8px; }
-.empty-history p { font-size: 14px; margin-bottom: 25px; }
+.empty-history ion-icon {
+  font-size: 64px;
+  opacity: 0.2;
+  margin-bottom: 15px;
+}
+
+.empty-history h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e2a4a;
+  margin-bottom: 8px;
+}
+
+.empty-history p {
+  font-size: 14px;
+  margin-bottom: 25px;
+}
 
 .state-container {
   display: flex;
@@ -460,8 +551,22 @@ ion-segment-button {
 }
 
 @media (prefers-color-scheme: dark) {
-  ion-header ion-toolbar, .filter-section { background: #121212; --color: white; }
-  .item-main { background: #1e1e1e; border-color: #2a2a2a; }
-  .item-info h4, .item-amount .mga, .empty-history h3 { color: white; }
+
+  ion-header ion-toolbar,
+  .filter-section {
+    background: #121212;
+    --color: white;
+  }
+
+  .item-main {
+    background: #1e1e1e;
+    border-color: #2a2a2a;
+  }
+
+  .item-info h4,
+  .item-amount .mga,
+  .empty-history h3 {
+    color: white;
+  }
 }
 </style>

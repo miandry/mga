@@ -220,7 +220,8 @@ const saveAsDraft = async () => {
       field_image_ariary: paymentProofs.value.map(p => (p.fid)),
       field_cours_rmb: exchangeStore.rateHistory[0]?.tid || '',
       status: 0,
-      token: authStore.token
+      token: authStore.token,
+      uid: authStore.user.id,
     };
 
     const response = await fetch(`${API_BASE_URL}/api_solutions/save`, {

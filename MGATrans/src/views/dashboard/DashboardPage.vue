@@ -25,7 +25,7 @@
         <h1 class="balance-amount">
           <span v-if="isLoading">...</span>
           <span v-else>{{ totalCNY.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-            }}</span>
+          }}</span>
           <span class="currency-unit">CNY</span>
         </h1>
         <div class="card-footer">
@@ -138,9 +138,10 @@ const totalMGA = ref(0);
 const txIcon = (status: string) => {
   switch (status) {
     case 'confirmed': return checkmarkCircle;
-    case 'payer': return checkmarkCircle;
-    case 'en_cours': return timeOutline;
+    case 'payed': return checkmarkCircle;
+    case 'in_process': return timeOutline;
     case 'request_transfer': return timeOutline;
+    case 'canceled': return alertCircleOutline;
     default: return closeCircle; // draft
   }
 };
@@ -225,9 +226,13 @@ onMounted(async () => {
   // Fetch Recent Transactions
   // =========================
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api_solutions/api/v2/node/transfer?sort[val]=created&sort[op]=DESC&offset=5&token=${authStore.token}`,
-      {
+    let url = '';
+    if (authStore.hasRole('administrator')) {
+      url = `${API_BASE_URL}/api_solutions/api/v2/node/transfer?sort[val]=created&sort[op]=DESC&offset=5&token=${authStore.token}`;
+    } else if (authStore.hasRole('authenticated_user')) {
+      url = `${API_BASE_URL}/api_solutions/api/v2/node/transfer?sort[val]=created&sort[op]=DESC&offset=5&filters[uid][val]=${authStore.user.id}`;
+    }
+    const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -485,6 +490,11 @@ onMounted(async () => {
 .tx-icon.draft {
   background: rgba(136, 146, 160, 0.15);
   color: #8892a0;
+}
+
+.tx-icon.canceled {
+  background: rgba(235, 68, 90, 0.12);
+  color: #eb445a;
 }
 
 .loading-state {
