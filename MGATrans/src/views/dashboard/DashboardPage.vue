@@ -246,7 +246,7 @@ onMounted(async () => {
       const tx = mapNode(n);
       const exists = transactionStore.transactions.find(t => t.id === tx.id);
       if (!exists) {
-        transactionStore.addTransaction({ ...tx, reference: '' });
+        transactionStore.addTransaction({ ...tx, reference: '', username: authStore.user?.name });
       }
     });
 
