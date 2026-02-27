@@ -25,7 +25,7 @@
         <h1 class="balance-amount">
           <span v-if="isLoading">...</span>
           <span v-else>{{ totalCNY.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-          }}</span>
+            }}</span>
           <span class="currency-unit">CNY</span>
         </h1>
         <div class="card-footer">
@@ -183,11 +183,19 @@ const mapNode = (node: any) => {
     method: (node.field_method_payment === 'WeChat' ? 'WeChat' : 'Alipay') as 'WeChat' | 'Alipay',
     status: (node.field_status_process === 'en_cours' || node.field_status_process === 'in_process' ? 'in_process' :
       node.field_status_process === 'payer' || node.field_status_process === 'payed' ? 'payed' :
-        node.field_status_process) as any,
+        node.field_status_process === 'canceled' ? 'canceled' :
+          node.field_status_process) as any,
     date: formatDate(node.created ?? node.changed),
-    reference: '',
-    proofUrl: node.field_image_ariary?.map((img: any) => img.url) || [],
-    qrCodeUrl: node.field_image_qrcode?.map((img: any) => img.url) || [],
+    proofUrl: (node.field_image_ariary || []).map((img: any) => ({
+      id: String(img.id ?? img.target_id ?? ''),
+      url: img.url,
+      alt: img.alt ?? ''
+    })),
+    qrCodeUrl: (node.field_image_qrcode || []).map((img: any) => ({
+      id: String(img.id ?? img.target_id ?? ''),
+      url: img.url,
+      alt: img.alt ?? ''
+    })),
   };
 };
 
@@ -233,11 +241,11 @@ onMounted(async () => {
       url = `${API_BASE_URL}/api_solutions/api/v2/node/transfer?sort[val]=created&sort[op]=DESC&offset=5&filters[uid][val]=${authStore.user.id}`;
     }
     const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-      }
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+    }
     );
 
     const data = await response.json();
@@ -251,7 +259,7 @@ onMounted(async () => {
       const tx = mapNode(n);
       const exists = transactionStore.transactions.find(t => t.id === tx.id);
       if (!exists) {
-        transactionStore.addTransaction({ ...tx, reference: '', username: authStore.user?.name });
+        transactionStore.addTransaction({ ...tx, username: authStore.user?.name });
       }
     });
 

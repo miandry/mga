@@ -100,7 +100,7 @@
 <script setup lang="ts">
 import {
   IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle,
-  IonContent, IonIcon, IonFooter, IonButton, IonSpinner
+  IonContent, IonIcon, IonFooter, IonButton, IonSpinner, IonInput
 } from '@ionic/vue';
 import {
   chevronBackOutline, cameraOutline, arrowForwardOutline,
@@ -193,15 +193,23 @@ const isReady = computed(() => {
 });
 
 const handleContinue = () => {
+  let paymentProofsData;
+
+  if (paymentProofs.value.length === 1 && !paymentProofs.value[0].fid) {
+    paymentProofsData = null;
+  } else {
+    paymentProofsData = JSON.stringify(paymentProofs.value.map(p => ({
+      target_id: p.fid,
+      alt: p.reference,
+      url: p.url,
+      title: p.reference,
+    })))
+  }
   router.push({
     path: '/transfer/qrcode',
     query: {
       ...transferData.value,
-      paymentProofs: JSON.stringify(paymentProofs.value.map(p => ({
-        fid: p.fid,
-        reference: p.reference,
-        url: p.url
-      })))
+      paymentProofs: paymentProofsData,
     }
   });
 };
@@ -209,7 +217,6 @@ const handleContinue = () => {
 const saveAsDraft = async () => {
   try {
     isLoading.value = true;
-
     const payload = {
       entity_type: 'node',
       bundle: 'transfer',
@@ -217,7 +224,13 @@ const saveAsDraft = async () => {
       field_montant_rmb: parseFloat(String(transferData.value.amountCNY || 0)),
       field_method_payment: transferData.value.method,
       field_status_process: "draft",
-      field_image_ariary: paymentProofs.value.map(p => (p.fid)),
+      field_image_ariary: paymentProofs.value
+        .filter(p => p.fid)
+        .map(p => ({
+          target_id: p.fid,
+          alt: p.reference || '',
+          title: p.reference || ''
+        })),
       field_cours_rmb: exchangeStore.rateHistory[0]?.tid || '',
       status: 0,
       token: authStore.token,
@@ -249,9 +262,14 @@ const saveAsDraft = async () => {
         status: 'draft',
         date: now,
         beneficiary: '—',
-        proofUrl: paymentProofs.value.map(p => p.url).filter(url => url !== null) as string[],
+        proofUrl: paymentProofs.value
+          .filter(p => p.fid && p.url)
+          .map(p => ({
+            id: String(p.fid),
+            url: p.url as string,
+            alt: p.reference || '',
+          })),
         rate: exchangeStore.rateMGAtoCNY,
-        reference: 'Brouillon'
       });
 
       router.push('/dashboard');

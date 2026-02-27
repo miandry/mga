@@ -81,7 +81,7 @@
 <script setup lang="ts">
 import {
   IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle,
-  IonContent, IonIcon, IonFooter, IonButton, IonSpinner
+  IonContent, IonIcon, IonFooter, IonButton, IonSpinner, IonInput
 } from '@ionic/vue';
 import {
   chevronBackOutline, addOutline, closeCircle,
@@ -181,25 +181,46 @@ const handleFinish = async (isDraft = false) => {
   console.log('Saving transfer, isDraft:', isDraft, 'isPublished:', isPublished);
   try {
     const proofs = transferData.value.paymentProofs ? JSON.parse(transferData.value.paymentProofs) : [];
-    const proofFids = proofs.map((p: any) => p.fid);
-    const proofImageUrls = proofs.map((p: any) => p.url);
-    const references = proofs.map((p: any) => p.reference);
-    if (uploadedQRs.value.length == 0 || proofFids.length == 0) {
+    const proofDataPayload = proofs.map((p: any) => ({
+      target_id: p.target_id,
+      alt: p.alt || p.title || 'Proof',
+      title: p.alt || p.title || 'Proof'
+    }));
+
+    const qrImagesPayload = uploadedQRs.value.map(qr => ({
+      target_id: qr.fid,
+      alt: qr.label || '',
+      title: qr.label || '',
+    }));
+
+    const proofData = proofs.map((p: any) => ({
+      id: String(p.target_id),
+      alt: p.alt || p.title || 'Proof',
+      url: p.url || '',
+    }));
+
+    const qrImages = uploadedQRs.value.map(qr => ({
+      id: String(qr.fid),
+      url: qr.url,
+      alt: qr.label || '',
+    }));
+    console.log('Prepared proof data for qr:', uploadedQRs.value);
+    console.log('Prepared QR data for payload:', qrImages);
+    if (qrImagesPayload.length == 0 || proofDataPayload.length == 0) {
       isPublished = 0; // Force draft if no proofs or QR codes
     }
     const payload = {
       entity_type: 'node',
       bundle: 'transfer',
       uid: authStore.user.id,
-      title: references[0] || `${isPublished == 1 ? 'Transfert ' : 'Brouillon-'}${new Date().toLocaleDateString()}`,
+      title: `${isPublished == 1 ? 'Transfert ' : 'Brouillon-'}${new Date().toLocaleDateString()}`,
       field_cours_rmb: exchangeStore.rateHistory[0]?.tid || '',
-      field_image_ariary: proofFids,
-      field_image_qrcode: uploadedQRs.value.map(qr => qr.fid),
+      field_image_ariary: proofDataPayload,
+      field_image_qrcode: qrImagesPayload,
       field_method_payment: transferData.value.method,
       field_montant_rmb: transferData.value.amountCNY,
       field_status_priority: isPublished == 0 ? 'low' : 'normal',
       field_status_process: isPublished == 0 ? 'draft' : 'in_process',
-      field_reference_code: references,
       status: isPublished == 1 ? 1 : 0, // 0 = Draft (Unpublished), 1 = Published
       token: authStore.token
     };
@@ -225,28 +246,9 @@ const handleFinish = async (isDraft = false) => {
         date: 'À l\'instant',
         beneficiary: 'Transaction directe',
         rate: parseFloat(transferData.value.rate ?? exchangeStore.rateMGAtoCNY),
-        proofUrl: proofImageUrls.length > 0 ? proofImageUrls : '',
-        qrCodeUrl: uploadedQRs.value.length > 0 ? uploadedQRs.value.map(qr => qr.url).filter(url => url !== null) as string[] : [],
-        reference: references[0] || 'Draft'
+        proofUrl: proofData,
+        qrCodeUrl: qrImages,
       });
-
-
-      console.log('ADDDD:', {
-        username: authStore.user?.name || '_',
-        id: newNodeId.toString(),
-        amountMGA: parseFloat(transferData.value.amountMGA),
-        amountCNY: parseFloat(transferData.value.amountCNY),
-        method: transferData.value.method,
-        status: isPublished == 0 ? 'draft' : 'in_process',
-        date: 'À l\'instant',
-        beneficiary: 'Transaction directe',
-        rate: parseFloat(transferData.value.rate ?? exchangeStore.rateMGAtoCNY),
-        proofUrl: proofImageUrls.length > 0 ? proofImageUrls : '',
-        qrCodeUrl: uploadedQRs.value.length > 0 ? uploadedQRs.value.map(qr => qr.url).filter(url => url !== null) as string[] : [],
-        reference: references[0] || 'Draft'
-      });
-
-
 
       router.push(isPublished == 1 ? '/dashboard' : '/transaction/' + newNodeId);
     } else {

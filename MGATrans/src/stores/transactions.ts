@@ -1,35 +1,46 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
+export interface MediaItem {
+  id: string;
+  url: string;
+  alt: string;
+}
+
 export interface Transaction {
-    id: string;
-    username: string;
-    amountMGA: number;
-    amountCNY: number;
-    method: 'WeChat' | 'Alipay';
-    status: 'draft' | 'request_transfer' | 'in_process' | 'payed' | 'confirmed';
-    date: string;
-    beneficiary: string;
-    rate: number;
-    proofUrl?: string | string[];
-    qrCodeUrl?: string | string[];
-    reference?: string;
+  id: string;
+  username: string;
+  amountMGA: number;
+  amountCNY: number;
+  method: 'WeChat' | 'Alipay';
+  status: 'draft' | 'request_transfer' | 'in_process' | 'payed' | 'confirmed' | 'canceled';
+  date: string;
+  beneficiary: string;
+  rate: number;
+  proofUrl?: MediaItem[];
+  qrCodeUrl?: MediaItem[];
 }
 
 export const useTransactionStore = defineStore('transactions', () => {
-    const transactions = ref<Transaction[]>([]);
+  const transactions = ref<Transaction[]>([]);
 
-    function addTransaction(tx: Transaction) {
-        transactions.value.unshift(tx);
+  function addTransaction(tx: Transaction) {
+    transactions.value.unshift(tx);
+  }
+
+  function updateTransactionStatus(
+    id: string,
+    status: Transaction['status'],
+    qrCodeUrl?: MediaItem[]
+  ) {
+    const tx = transactions.value.find(t => t.id === id);
+    if (tx) {
+      tx.status = status;
+      if (qrCodeUrl) {
+        tx.qrCodeUrl = qrCodeUrl;
+      }
     }
+  }
 
-    function updateTransactionStatus(id: string, status: Transaction['status'], qrCodeUrl?: string) {
-        const tx = transactions.value.find(t => t.id === id);
-        if (tx) {
-            tx.status = status;
-            if (qrCodeUrl) tx.qrCodeUrl = qrCodeUrl;
-        }
-    }
-
-    return { transactions, addTransaction, updateTransactionStatus };
+  return { transactions, addTransaction, updateTransactionStatus };
 });

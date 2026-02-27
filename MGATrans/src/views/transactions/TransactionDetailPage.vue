@@ -84,36 +84,28 @@
             <h3>Votre QR Code de réception</h3>
             <p>Présentez ce code ou partagez-le avec le bénéficiaire en Chine.</p>
 
-            <div class="qr-carousel">
-              <div v-for="(url, idx) in tx.qrCodeUrl" :key="idx" class="qr-container"
+            <div class="qr-carousel" :class="{ 'single': tx.qrCodeUrl.length === 1 }">
+              <div v-for="(obj, idx) in tx.qrCodeUrl" :key="idx" class="qr-container"
                 @click="router.push('/transaction/qr/' + tx.id)">
-                <img :src="url" alt="QR Code" />
+                <img :src="obj.url" :alt="obj.alt" />
                 <div class="qr-overlay">
                   <ion-icon :icon="expandOutline"></ion-icon>
                 </div>
               </div>
             </div>
 
-            <ion-button expand="block" fill="outline" class="qr-btn" @click="router.push('/transaction/qr/' + tx.id)">
+            <!-- <ion-button expand="block" fill="outline" class="qr-btn" @click="router.push('/transaction/qr/' + tx.id)">
               <ion-icon slot="start" :icon="qrCodeOutline"></ion-icon>
               Voir en plein écran
-            </ion-button>
+            </ion-button> -->
           </div>
 
           <!-- Proof Section (Details Tab) -->
           <!-- Si c'est un array -->
           <div v-if="Array.isArray(tx.proofUrl) && tx.proofUrl.length > 0" class="info-card proof-card">
             <h3>Justificatif envoyé</h3>
-            <div v-for="(url, idx) in tx.proofUrl" :key="idx" class="proof-preview">
-              <img :src="url" alt="Proof" />
-            </div>
-          </div>
-
-          <!--Si c'est un string (une seule image) -->
-          <div v-else-if="typeof tx.proofUrl === 'string' && tx.proofUrl.length > 0" class="info-card proof-card">
-            <h3>Justificatif envoyé</h3>
-            <div class="proof-preview">
-              <img :src="tx.proofUrl" alt="Proof" />
+            <div v-for="(obj, idx) in tx.proofUrl" :key="idx" class="proof-preview">
+              <img :src="obj.url" :alt="obj.alt || 'Proof'" />
             </div>
           </div>
 
@@ -133,31 +125,28 @@
 
             <div class="upload-grid">
               <div class="upload-grid">
-
                 <!-- Array -->
                 <div v-if="Array.isArray(tx.proofUrl) && tx.proofUrl.length > 0" class="upload-grid">
-                  <div v-for="(url, idx) in tx.proofUrl" :key="idx" class="uploaded-thumb">
-                    <img :src="url" />
+                  <div v-for="(obj, idx) in tx.proofUrl" :key="idx" class="uploaded-thumb">
+                    <img :src="obj.url" />
+                    <p class="alt-text">{{ obj.alt }}</p>
                   </div>
                 </div>
-
-                <!-- String -->
-                <div v-else-if="typeof tx.proofUrl === 'string' && tx.proofUrl.length > 0" class="upload-grid">
-                  <div class="uploaded-thumb">
-                    <img :src="tx.proofUrl" />
-                  </div>
-                </div>
-
               </div>
               <div class="upload-grid">
-                <div v-for="(img, idx) in ariaryProofs" :key="idx" class="uploaded-thumb">
+                <div v-for="(img, idx) in ariaryProofs" :key="idx" class="uploaded-thumb mt-card">
                   <img :src="img.preview" />
                   <div class="remove-overlay" @click="removeImage('ariary', idx)">
                     <ion-icon :icon="trashOutline"></ion-icon>
                   </div>
+                  <!-- Nouveau champ texte alternatif -->
+                  <div class="alt-input-container">
+                    <input type="text" v-model="img.alt" placeholder="Ex: MM2401... " class="alt-input" />
+                  </div>
                 </div>
               </div>
-              <div v-if="canUploadAriary" class="upload-btn-box" @click="triggerUpload('ariary')">
+              <div v-if="canUploadAriary && tx.username === authStore.user.name" class="upload-btn-box"
+                @click="triggerUpload('ariary')">
                 <ion-icon :icon="cloudUploadOutline"></ion-icon>
                 <span>Uploader</span>
               </div>
@@ -173,22 +162,25 @@
 
             <div class="upload-grid">
               <div v-if="tx.qrCodeUrl && tx.qrCodeUrl.length > 0" class="upload-grid">
-                <div v-for="(url, idx) in tx.qrCodeUrl" :key="idx" class="uploaded-thumb">
-                  <img :src="url" />
-                  <!-- <div class="remove-overlay">
-                    <ion-icon :icon="trashOutline"></ion-icon>
-                  </div> -->
+                <div v-for="(obj, idx) in tx.qrCodeUrl" :key="idx" class="uploaded-thumb">
+                  <img :src="obj.url" :alt="obj.alt || 'QR Code'" />
+                  <p class="alt-text">{{ obj.alt }}</p>
                 </div>
               </div>
               <div class="upload-grid">
-                <div v-for="(img, idx) in qrProofs" :key="idx" class="uploaded-thumb">
+                <div v-for="(img, idx) in qrProofs" :key="idx" class="uploaded-thumb mt-card">
                   <img :src="img.preview" />
                   <div class="remove-overlay" @click="removeImage('qr', idx)">
                     <ion-icon :icon="trashOutline"></ion-icon>
                   </div>
+                  <!-- Nouveau champ texte alternatif -->
+                  <div class="alt-input-container">
+                    <input type="text" v-model="img.alt" placeholder="Ex: 3000 ..." class="alt-input" />
+                  </div>
                 </div>
               </div>
-              <div v-if="canUploadQr" class="upload-btn-box" @click="triggerUpload('qr')">
+              <div v-if="canUploadQr && tx.username === authStore.user.name" class="upload-btn-box"
+                @click="triggerUpload('qr')">
                 <ion-icon :icon="cloudUploadOutline"></ion-icon>
                 <span>Uploader</span>
               </div>
@@ -273,7 +265,7 @@
 <script setup lang="ts">
 import {
   IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle,
-  IonContent, IonIcon, IonButton, IonSpinner, IonFooter, IonSegment, IonSegmentButton, IonLabel,
+  IonContent, IonIcon, IonButton, IonSpinner, IonFooter, IonSegment, IonSegmentButton, IonLabel, IonInput,
   actionSheetController
 } from '@ionic/vue';
 import {
@@ -287,7 +279,6 @@ import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useTransactionStore } from '@/stores/transactions';
 import { API_BASE_URL } from '@/services/api';
-import { uid } from 'chart.js/dist/helpers/helpers.core';
 
 const route = useRoute();
 const router = useRouter();
@@ -298,8 +289,8 @@ const tx = ref<any>(null);
 const isUpdating = ref(false);
 const activeTab = ref('details');
 
-const ariaryProofs = ref<{ fid: number, preview: string, url: string }[]>([]);
-const qrProofs = ref<{ fid: number, preview: string, url: string }[]>([]);
+const ariaryProofs = ref<{ fid: number, preview: string, url: string, alt: string }[]>([]);
+const qrProofs = ref<{ fid: number, preview: string, url: string, alt: string }[]>([]);
 const ariaryInput = ref<HTMLInputElement | null>(null);
 const qrInput = ref<HTMLInputElement | null>(null);
 
@@ -370,11 +361,51 @@ const updateStatus = async (newStatus: string) => {
     };
 
     // Include images if submitting
-    if (newStatus === 'in_process') {
-      payload.field_image_ariary = ariaryProofs.value.map(p => p.fid);
-      payload.field_image_qrcode = qrProofs.value.map(p => p.fid);
-      payload.status = 1; // Publish when submitted
-    }
+    // if (newStatus === 'in_process') {
+
+    // ---- ARIARY ----
+    const existingAriary = Array.isArray(tx.value.proofUrl)
+      ? tx.value.proofUrl.map(p => ({
+        target_id: p.id,
+        alt: p.alt,
+        title: p.alt,
+      }))
+      : [];
+
+    const newAriary = ariaryProofs.value.map(p => ({
+      target_id: p.fid,
+      alt: p.alt || '',
+      title: p.alt || '',
+    }));
+
+    payload.field_image_ariary = [
+      ...existingAriary,
+      ...newAriary
+    ];
+
+
+    // ---- QR CODE ----
+    const existingQr = Array.isArray(tx.value.qrCodeUrl)
+      ? tx.value.qrCodeUrl.map(p => ({
+        target_id: p.id,
+        alt: p.alt,
+        title: p.alt,
+      }))
+      : [];
+
+    const newQr = qrProofs.value.map(p => ({
+      target_id: p.fid,
+      alt: p.alt || '',
+      title: p.alt || ''
+    }));
+
+    payload.field_image_qrcode = [
+      ...existingQr,
+      ...newQr
+    ];
+
+    payload.status = 1; // Publier
+    // }
 
     const response = await fetch(`${API_BASE_URL}/api_solutions/save`, {
       method: 'POST',
@@ -388,11 +419,41 @@ const updateStatus = async (newStatus: string) => {
       const storeTx = transactionStore.transactions.find(t => t.id === tx.value.id);
       if (storeTx) {
         storeTx.status = newStatus as any;
-        if (newStatus === 'in_process') {
-          // Update store with images
-          storeTx.proofUrl = ariaryProofs.value.map(p => p.url);
-          storeTx.qrCodeUrl = qrProofs.value.map(p => p.url);
-        }
+        // if (newStatus === 'in_process') {
+
+        // ---- ARIARY ----
+        const existingAriary = Array.isArray(storeTx.proofUrl)
+          ? storeTx.proofUrl
+          : [];
+
+        const newAriary = ariaryProofs.value.map(p => ({
+          id: String(p.fid),
+          url: p.url,
+          alt: p.alt || ''
+        }));
+
+        storeTx.proofUrl = [
+          ...existingAriary,
+          ...newAriary
+        ];
+
+
+        // ---- QR CODE ----
+        const existingQr = Array.isArray(storeTx.qrCodeUrl)
+          ? storeTx.qrCodeUrl
+          : [];
+
+        const newQr = qrProofs.value.map(p => ({
+          id: String(p.fid),
+          url: p.url,
+          alt: p.alt || ''
+        }));
+
+        storeTx.qrCodeUrl = [
+          ...existingQr,
+          ...newQr
+        ];
+        // }
         ariaryProofs.value = [];
         qrProofs.value = [];
       }
@@ -437,9 +498,9 @@ const handleFileUpload = async (type: 'ariary' | 'qr', event: any) => {
 
     if (data.status && data.fid) {
       if (type === 'ariary') {
-        ariaryProofs.value.push({ fid: data.fid, preview, url: data.url });
+        ariaryProofs.value.push({ fid: data.fid, preview, url: data.url, alt: '' });
       } else {
-        qrProofs.value.push({ fid: data.fid, preview, url: data.url });
+        qrProofs.value.push({ fid: data.fid, preview, url: data.url, alt: '' });
       }
     } else {
       alert('Erreur: ' + (data.message || 'Upload échoué.'));
@@ -477,14 +538,17 @@ const presentActionSheet = async () => {
 
 const maxUploads = 3;
 
+// Compter les images existantes pour Ariary et QR
 const existingAriaryCount = computed(() => {
-  return tx.value?.proofUrl ? 1 : 0;
+  // tx.proofUrl peut être un array d'objets { url, alt }
+  return Array.isArray(tx.value?.proofUrl) ? tx.value.proofUrl.length : 0;
 });
 
 const existingQrCount = computed(() => {
-  return tx.value?.qrCodeUrl?.length || 0;
+  return Array.isArray(tx.value?.qrCodeUrl) ? tx.value.qrCodeUrl.length : 0;
 });
 
+// Compter toutes les images (existantes + ajoutées)
 const totalAriaryCount = computed(() => {
   return existingAriaryCount.value + ariaryProofs.value.length;
 });
@@ -493,6 +557,7 @@ const totalQrCount = computed(() => {
   return existingQrCount.value + qrProofs.value.length;
 });
 
+// Déterminer si on peut encore uploader
 const canUploadAriary = computed(() => {
   return totalAriaryCount.value < maxUploads;
 });
@@ -576,6 +641,7 @@ ion-segment {
   margin-bottom: 25px;
   background: white;
   padding: 20px;
+  padding-bottom: 40px;
   border-radius: 20px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
@@ -605,7 +671,14 @@ ion-segment {
   height: 80px;
   border-radius: 14px;
   position: relative;
-  overflow: hidden;
+  /* overflow: hidden; */
+}
+
+.alt-text {
+  color: black;
+  font-size: 10px;
+  text-align: center;
+  margin: 0;
 }
 
 .upload-btn-box {
@@ -633,6 +706,7 @@ ion-segment {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 14px;
 }
 
 .remove-overlay {
@@ -647,6 +721,22 @@ ion-segment {
   justify-content: center;
   color: white;
   font-size: 20px;
+  border-radius: 14px;
+}
+
+.alt-input-container {
+  margin-top: 4px;
+  width: 100%;
+}
+
+.alt-input {
+  height: 20px;
+  font-size: 10px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .info-note {
@@ -837,30 +927,34 @@ ion-segment {
 }
 
 .qr-container {
-  display: inline-block;
+  flex: 0 0 auto;
+  scroll-snap-align: center;
   padding: 15px;
   background: white;
   border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   position: relative;
-  margin-bottom: 20px;
 }
 
 .qr-container img {
-  width: 180px;
-  height: 180px;
+  width: 250px;
+  height: 250px;
+  object-fit: cover;
 }
 
 .qr-carousel {
   display: flex;
   overflow-x: auto;
   gap: 15px;
-  padding: 10px 0;
-  justify-content: center;
+  padding: 10px 15px;
+  scroll-snap-type: x mandatory;
 }
 
 .qr-carousel::-webkit-scrollbar {
   display: none;
+}
+
+.qr-carousel.single {
+  justify-content: center;
 }
 
 .qr-overlay {

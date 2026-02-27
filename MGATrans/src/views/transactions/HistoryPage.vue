@@ -185,11 +185,19 @@ const mapNode = (node: any): Transaction => {
     method: (node.field_method_payment === 'WeChat' ? 'WeChat' : 'Alipay') as 'WeChat' | 'Alipay',
     status: (node.field_status_process === 'en_cours' || node.field_status_process === 'in_process' ? 'in_process' :
       node.field_status_process === 'payer' || node.field_status_process === 'payed' ? 'payed' :
-        node.field_status_process) as Transaction['status'],
+        node.field_status_process === 'canceled' ? 'canceled' :
+          node.field_status_process) as Transaction['status'],
     date: formatDate(node.created ?? node.changed),
-    reference: '',
-    proofUrl: node.field_image_ariary?.[0]?.url || '',
-    qrCodeUrl: node.field_image_qrcode?.map((img: any) => img.url) || [],
+    proofUrl: (node.field_image_ariary || []).map((img: any) => ({
+      id: String(img.id ?? img.target_id ?? ''),
+      url: img.url,
+      alt: img.alt ?? ''
+    })),
+    qrCodeUrl: (node.field_image_qrcode || []).map((img: any) => ({
+      id: String(img.id ?? img.target_id ?? ''),
+      url: img.url,
+      alt: img.alt ?? ''
+    })),
   };
 };
 
@@ -245,7 +253,7 @@ const fetchTransactions = async (isLoadMore = false) => {
     // Sync to store
     mapped.forEach((tx: Transaction) => {
       const exists = transactionStore.transactions.find(t => t.id === tx.id);
-      if (!exists) transactionStore.addTransaction({ ...tx, reference: '' });
+      if (!exists) transactionStore.addTransaction({ ...tx });
     });
   } catch (err) {
     console.error('History load error:', err);
