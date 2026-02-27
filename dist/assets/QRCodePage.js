@@ -1,0 +1,1 @@
+import{d as n,c as t,b as a,f as o,o as s,e as r,I as d,g as l,D as u}from"./index.js";const _=n({__name:"QRCodePage",setup(c){return(f,e)=>(s(),t(o(u),null,{default:a(()=>[r(o(d),{class:"ion-padding"},{default:a(()=>[...e[0]||(e[0]=[l("h1",null,"QR Code",-1)])]),_:1})]),_:1}))}});export{_ as default};
