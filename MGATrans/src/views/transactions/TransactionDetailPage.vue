@@ -353,7 +353,6 @@ const updateStatus = async (newStatus: string) => {
       entity_type: 'node',
       bundle: 'transfer',
       title: `Transfert ${new Date().toLocaleDateString()}`,
-      uid: authStore.user.id,
       nid: tx.value.id, // Nid for update
       field_status_process: backendStatus,
       token: authStore.token,
