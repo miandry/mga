@@ -6,11 +6,17 @@
           <ion-back-button default-href="/dashboard" :icon="chevronBackOutline"></ion-back-button>
         </ion-buttons>
         <ion-title>Mon historique</ion-title>
+        <ion-buttons slot="end">
+          <ion-button @click="reloadTransactions" :disabled="isLoading">
+            <ion-icon :icon="refreshOutline" slot="icon-only" :class="{ 'spin': isLoading }"></ion-icon>
+          </ion-button>
+        </ion-buttons>
       </ion-toolbar>
       <ion-toolbar class="search-toolbar">
-        <ion-searchbar v-model="searchQuery" placeholder="Rechercher un transfert..."></ion-searchbar>
+        <ion-searchbar v-model="searchQuery" placeholder="Rechercher un transfert..." debounce="500"></ion-searchbar>
       </ion-toolbar>
     </ion-header>
+
     <ion-content class="history-content">
       <div class="filter-section">
         <ion-segment v-model="filterStatus" mode="md" scrollable>
@@ -69,7 +75,15 @@
         <div v-else-if="loadError" class="state-container error">
           <ion-icon :icon="alertCircleOutline"></ion-icon>
           <p>{{ loadError }}</p>
-          <ion-button fill="clear" @click="fetchTransactions">Réessayer</ion-button>
+          <ion-button fill="clear" @click="reloadTransactions">Réessayer</ion-button>
+        </div>
+
+        <!-- No Authentication -->
+        <div v-else-if="!authStore.isAuthenticated" class="empty-history">
+          <ion-icon :icon="personOutline"></ion-icon>
+          <h3>Non connecté</h3>
+          <p>Veuillez vous connecter pour voir vos transactions</p>
+          <ion-button fill="outline" @click="router.push('/login')">Se connecter</ion-button>
         </div>
 
         <!-- Transactions List -->
@@ -82,7 +96,6 @@
                 <ion-icon :icon="tx.method === 'WeChat' ? chatbubbleEllipses : card"></ion-icon>
               </div>
               <div class="item-info">
-                
                 <p v-if="authStore.hasRole('administrator')" class="payment-method">
                   <span class="username-owner">{{ tx.username }}</span> - Via {{ tx.method }}
                 </p>
@@ -91,14 +104,13 @@
                 <p class="rate">Cours: {{ tx.rate.toLocaleString() }} MGA</p>
               </div>
               <div class="item-amounts">
-                <p class=""></p>
                 <p class="mga">≈ {{ tx.amountMGA.toLocaleString() }} MGA</p>
                 <div class="status-tag" :class="tx.status">{{ statusLabel(tx.status) }}</div>
               </div>
             </div>
           </div>
 
-          <div v-if="filteredTransactions.length === 0" class="empty-history">
+          <div v-if="filteredTransactions.length === 0 && !isLoading" class="empty-history">
             <ion-icon :icon="receiptOutline"></ion-icon>
             <h3>Aucun transfert trouvé</h3>
             <p>Vous n'avez pas encore de transactions correspondant à ce filtre.</p>
@@ -106,7 +118,7 @@
           </div>
         </template>
 
-        <ion-infinite-scroll @ionInfinite="handleInfinite" :disabled="!hasMore">
+        <ion-infinite-scroll @ionInfinite="handleInfinite" :disabled="!hasMore || isLoading">
           <ion-infinite-scroll-content loading-spinner="bubbles"
             loading-text="Chargement..."></ion-infinite-scroll-content>
         </ion-infinite-scroll>
@@ -121,12 +133,13 @@
 import {
   IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle,
   IonContent, IonSearchbar, IonSegment, IonSegmentButton, IonLabel,
-  IonIcon, IonButton, IonSpinner, IonInfiniteScroll, IonInfiniteScrollContent,
+  IonIcon, IonButton, IonInfiniteScroll, IonInfiniteScrollContent,
   IonSkeletonText
 } from '@ionic/vue';
 import {
   chevronBackOutline, chatbubbleEllipses, card,
-  receiptOutline, alertCircleOutline
+  receiptOutline, alertCircleOutline, refreshOutline,
+  personOutline
 } from 'ionicons/icons';
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -139,6 +152,7 @@ const router = useRouter();
 const authStore = useAuthStore();
 const transactionStore = useTransactionStore();
 
+// États
 const filterStatus = ref('all');
 const searchQuery = ref('');
 const transactions = ref<Transaction[]>([]);
@@ -147,22 +161,22 @@ const loadError = ref('');
 
 // Pagination state
 const currentPage = ref(0);
-const itemsPerPage = 5;
+const itemsPerPage = 10;
 const hasMore = ref(true);
 
-/** Format a Drupal date (Unix timestamp in seconds or ISO string) to DD/MM/YY */
+/** Format a Drupal date (Unix timestamp in seconds or ISO string) to DD/MM/YY HH:MM */
 const formatDate = (raw: any): string => {
   if (!raw) return '';
   const d = typeof raw === 'number' || /^\d+$/.test(String(raw))
-    ? new Date(parseInt(String(raw)) * 1000)   // Unix seconds → ms
-    : new Date(raw);                            // ISO string
+    ? new Date(parseInt(String(raw)) * 1000)
+    : new Date(raw);
   if (isNaN(d.getTime())) return String(raw);
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const yy = String(d.getFullYear()).slice(-2);
   const hours = String(d.getHours()).padStart(2, '0');
   const mins = String(d.getMinutes()).padStart(2, '0');
-  return `${dd}/${mm}/${yy}, ${hours}:${mins}`;
+  return `${dd}/${mm}/${yy} ${hours}:${mins}`;
 };
 
 /** Map raw API node to local tx model */
@@ -180,7 +194,7 @@ const mapNode = (node: any): Transaction => {
 
   return {
     id: String(node.nid ?? node.id ?? ''),
-    username: node.uid.name ?? '—',
+    username: node.uid?.name ?? '—',
     beneficiary: node.title ?? '—',
     amountMGA: cours > 0 ? Math.round(cours * rmb) : 0,
     amountCNY: rmb,
@@ -204,7 +218,14 @@ const mapNode = (node: any): Transaction => {
   };
 };
 
+// Fonction pour charger les transactions
 const fetchTransactions = async (isLoadMore = false) => {
+  if (!authStore.isAuthenticated) {
+    transactions.value = [];
+    hasMore.value = false;
+    return;
+  }
+
   if (!isLoadMore) {
     isLoading.value = true;
     currentPage.value = 0;
@@ -216,27 +237,41 @@ const fetchTransactions = async (isLoadMore = false) => {
 
   try {
     let url = '';
+    const baseUrl = `${API_BASE_URL}/api_solutions/api/v2/node/transfer`;
+    const params = new URLSearchParams({
+      'sort[val]': 'created',
+      'sort[op]': 'DESC',
+      'offset': itemsPerPage.toString(),
+      'pager': currentPage.value.toString(),
+      'token': authStore.token || ''
+    });
+
     if (authStore.hasRole('administrator')) {
-      url = `${API_BASE_URL}/api_solutions/api/v2/node/transfer?sort[val]=created&sort[op]=DESC&offset=${itemsPerPage}&pager=${currentPage.value}&token=${authStore.token}`;
-    } else if (authStore.hasRole('authenticated_user')) {
-      url = `${API_BASE_URL}/api_solutions/api/v2/node/transfer?sort[val]=created&sort[op]=DESC&offset=${itemsPerPage}&pager=${currentPage.value}&filters[uid][val]=${authStore.user.id}`;
+      // Admin voit tout
+    } else if (authStore.hasRole('authenticated_user') && authStore.user?.id) {
+      params.append('filters[uid][val]', authStore.user.id.toString());
+    } else {
+      transactions.value = [];
+      hasMore.value = false;
+      return;
     }
 
-    // Add backend status filter if not "all"
+    // Ajouter le filtre de statut si nécessaire
     if (filterStatus.value !== 'all') {
-      let backendStatus = filterStatus.value;
-      // No mapping needed if backend already uses in_process/payed
-      // But keeping a loose mapping for robustness
-      // if (backendStatus === 'in_process') backendStatus = 'in_process';
-      // if (backendStatus === 'payed') backendStatus = 'payed';
-
-      url += `&filters[field_status_process][val]=${backendStatus}`;
+      params.append('filters[field_status_process][val]', filterStatus.value);
     }
+
+    url = `${baseUrl}?${params.toString()}`;
 
     const response = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
+
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+
     const data = await response.json();
     const rows = Array.isArray(data) ? data : (data.rows ?? []);
 
@@ -261,13 +296,30 @@ const fetchTransactions = async (isLoadMore = false) => {
   } catch (err) {
     console.error('History load error:', err);
     loadError.value = 'Impossible de charger l\'historique.';
+    if (!isLoadMore) {
+      transactions.value = [];
+    }
   } finally {
     isLoading.value = false;
   }
 };
 
+// Fonction pour recharger les transactions (reset complet)
+const reloadTransactions = async () => {
+  if (!authStore.isAuthenticated) return;
+
+  isLoading.value = true;
+  loadError.value = '';
+  currentPage.value = 0;
+  hasMore.value = true;
+  transactions.value = [];
+
+  await fetchTransactions();
+};
+
+// Gestionnaire d'infinite scroll
 const handleInfinite = async (ev: any) => {
-  if (!hasMore.value || isLoading.value) {
+  if (!hasMore.value || isLoading.value || !authStore.isAuthenticated) {
     ev.target.complete();
     return;
   }
@@ -277,30 +329,18 @@ const handleInfinite = async (ev: any) => {
   ev.target.complete();
 };
 
-// Reset search and filters
-watch([filterStatus, searchQuery], () => {
-  fetchTransactions();
-});
-
-onMounted(() => {
-  fetchTransactions();
-});
-
+// Filtrage côté client (pour la recherche uniquement)
 const filteredTransactions = computed(() => {
   let list = transactions.value;
-  // Status filter (Now handled by backend, so this is technically redundant but kept safe 
-  // in case of race conditions during filter change, though fetchTransactions() is watched)
-  // if (filterStatus.value !== 'all') {
-  //   list = list.filter((tx: Transaction) => tx.status === filterStatus.value);
-  // }
 
-  // Search filter
+  // Search filter (client-side)
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase();
     list = list.filter((tx: Transaction) =>
-      tx.beneficiary.toLowerCase().includes(q) ||
+      (tx.beneficiary?.toLowerCase() || '').includes(q) ||
       tx.id.toLowerCase().includes(q) ||
-      tx.method.toLowerCase().includes(q)
+      tx.method.toLowerCase().includes(q) ||
+      (tx.username?.toLowerCase() || '').includes(q)
     );
   }
   return list;
@@ -312,10 +352,49 @@ const statusLabel = (status: string) => {
     in_process: 'En cours',
     payed: 'Payé',
     confirmed: 'Confirmé',
-    request_transfer: 'Demande'
+    request_transfer: 'Demande',
+    canceled: 'Annulé'
   };
   return labels[status] ?? status;
 };
+
+// Watchers
+watch(() => authStore.user?.id, (newUserId, oldUserId) => {
+  if (newUserId !== oldUserId) {
+    console.log('Utilisateur changé dans historique, rechargement...');
+    reloadTransactions();
+  }
+});
+
+watch(() => authStore.isAuthenticated, (isAuthenticated) => {
+  if (!isAuthenticated) {
+    transactions.value = [];
+    hasMore.value = false;
+  } else if (isAuthenticated) {
+    reloadTransactions();
+  }
+});
+
+// Watcher pour les filtres
+watch([filterStatus], () => {
+  if (authStore.isAuthenticated) {
+    reloadTransactions();
+  }
+});
+
+// Debounce pour la recherche
+let searchTimeout: NodeJS.Timeout;
+watch(searchQuery, (newQuery) => {
+  clearTimeout(searchTimeout);
+  // Pas de rechargement API pour la recherche, on filtre côté client
+  // Mais on pourrait aussi implémenter une recherche API si nécessaire
+});
+
+onMounted(() => {
+  if (authStore.isAuthenticated) {
+    reloadTransactions();
+  }
+});
 </script>
 
 <style scoped>
@@ -394,6 +473,7 @@ ion-segment-button {
 
 .history-item {
   margin-bottom: 20px;
+  cursor: pointer;
 }
 
 .item-date {
@@ -425,12 +505,12 @@ ion-segment-button {
   margin-right: 15px;
 }
 
-.wechat {
+.method-icon.wechat {
   background: #07c160;
   color: white;
 }
 
-.alipay {
+.method-icon.alipay {
   background: #00a0e9;
   color: white;
 }
@@ -446,9 +526,21 @@ ion-segment-button {
   color: #1e2a4a;
 }
 
-.item-info p {
-  margin: 0;
+.item-info h4 span {
+  font-size: 10px;
+  color: #8892a0;
+  margin-left: 2px;
+}
+
+.item-info .payment-method {
+  margin: 0 0 4px;
   font-size: 12px;
+  color: #8892a0;
+}
+
+.item-info .rate {
+  margin: 0;
+  font-size: 11px;
   color: #8892a0;
 }
 
@@ -456,21 +548,8 @@ ion-segment-button {
   text-align: right;
 }
 
-.item-amounts .cny {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 800;
-  color: #1e2a4a;
-}
-
-.item-amounts .cny span {
-  font-size: 10px;
-  color: #8892a0;
-  margin-left: 2px;
-}
-
 .item-amounts .mga {
-  margin: 0 5px 5px 0;
+  margin: 0 0 5px 0;
   font-size: 11px;
   font-weight: 600;
   color: #8892a0;
@@ -561,6 +640,20 @@ ion-segment-button {
   margin-bottom: 10px;
 }
 
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-color-scheme: dark) {
 
   ion-header ion-toolbar,
@@ -569,14 +662,21 @@ ion-segment-button {
     --color: white;
   }
 
+  .history-content {
+    --background: #121212;
+  }
+
   .item-main {
     background: #1e1e1e;
     border-color: #2a2a2a;
   }
 
   .item-info h4,
-  .item-amount .mga,
   .empty-history h3 {
+    color: white;
+  }
+
+  .user-info h3 {
     color: white;
   }
 }

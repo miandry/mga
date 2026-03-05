@@ -93,11 +93,6 @@
                 </div>
               </div>
             </div>
-
-            <!-- <ion-button expand="block" fill="outline" class="qr-btn" @click="router.push('/transaction/qr/' + tx.id)">
-              <ion-icon slot="start" :icon="qrCodeOutline"></ion-icon>
-              Voir en plein écran
-            </ion-button> -->
           </div>
 
           <!-- Proof Section (Details Tab) -->
@@ -226,11 +221,11 @@
             </ion-button>
           </div>
 
-          <!-- Authenticated User: Request Cancel -->
+          <!-- Authenticated User: Request Cancel avec modal -->
           <ion-button
             v-if="tx.status === 'in_process' && authStore.hasRole('authenticated_user') && !authStore.hasRole('administrator')"
             expand="block" mode="ios" fill="outline" color="danger" class="cancel-action-btn" :disabled="isUpdating"
-            @click="updateStatus('cancel_requested')">
+            @click="openCancelModal">
             <ion-spinner v-if="isUpdating" name="crescent"></ion-spinner>
             <span v-else>Demander une annulation</span>
           </ion-button>
@@ -259,6 +254,34 @@
         </div>
       </ion-toolbar>
     </ion-footer>
+
+    <!-- Modal de raison d'annulation -->
+    <ion-modal :is-open="isCancelModalOpen" @didDismiss="closeCancelModal" class="cancel-reason-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Raison de l'annulation</h2>
+          <ion-button fill="clear" @click="closeCancelModal">
+            <ion-icon :icon="closeOutline"></ion-icon>
+          </ion-button>
+        </div>
+        <div class="modal-body">
+          <ion-item lines="none" class="form-item">
+            <ion-label position="stacked">Pourquoi vous souhaitez annuler ce transfert</ion-label>
+            <ion-textarea v-model="cancelReason" placeholder="Ex: Erreur de montant..."
+              :rows="5" :maxlength="500" counter="true" class="custom-textarea" auto-grow>
+            </ion-textarea>
+          </ion-item>
+          <p class="char-count">{{ cancelReason.length }}/500</p>
+        </div>
+        <div class="modal-footer">
+          <ion-button :disabled="!cancelReason.trim() || isUpdating" @click="submitCancelRequest"
+            class="modal-btn confirm-btn">
+            <ion-spinner v-if="isUpdating" name="crescent"></ion-spinner>
+            <span v-else>Envoyer la demande</span>
+          </ion-button>
+        </div>
+      </div>
+    </ion-modal>
   </ion-page>
 </template>
 
@@ -266,13 +289,14 @@
 import {
   IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle,
   IonContent, IonIcon, IonButton, IonSpinner, IonFooter, IonSegment, IonSegmentButton, IonLabel, IonInput,
+  IonModal, IonItem, IonTextarea,
   actionSheetController
 } from '@ionic/vue';
 import {
   chevronBackOutline, shareSocialOutline, checkmarkCircle,
   time, closeCircle, arrowForward, chatbubbleEllipses, card,
   qrCodeOutline, expandOutline, helpCircleOutline, settingsOutline,
-  cloudUploadOutline, trashOutline, informationCircleOutline
+  cloudUploadOutline, trashOutline, informationCircleOutline, closeOutline
 } from 'ionicons/icons';
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -293,6 +317,10 @@ const ariaryProofs = ref<{ fid: number, preview: string, url: string, alt: strin
 const qrProofs = ref<{ fid: number, preview: string, url: string, alt: string }[]>([]);
 const ariaryInput = ref<HTMLInputElement | null>(null);
 const qrInput = ref<HTMLInputElement | null>(null);
+
+// État du modal
+const isCancelModalOpen = ref(false);
+const cancelReason = ref('');
 
 const canSubmit = computed(() => {
   const hasAriary = ariaryProofs.value.length > 0 || (tx.value && tx.value.proofUrl);
@@ -342,7 +370,30 @@ const statusDescription = computed(() => {
   };
   return desc[tx.value?.status] ?? '';
 });
-const updateStatus = async (newStatus: string) => {
+
+// Ouvrir le modal
+const openCancelModal = () => {
+  cancelReason.value = '';
+  isCancelModalOpen.value = true;
+};
+
+// Fermer le modal
+const closeCancelModal = () => {
+  isCancelModalOpen.value = false;
+  cancelReason.value = '';
+};
+
+// Soumettre la demande d'annulation avec raison
+const submitCancelRequest = async () => {
+  if (!cancelReason.value.trim()) return;
+
+  // Ici vous pouvez ajouter la logique pour envoyer la raison avec la demande d'annulation
+  // Par exemple, l'ajouter au payload
+  await updateStatus('cancel_requested', cancelReason.value);
+  closeCancelModal();
+};
+
+const updateStatus = async (newStatus: string, reason: string = '') => {
   if (!tx.value) return;
   isUpdating.value = true;
 
@@ -353,14 +404,16 @@ const updateStatus = async (newStatus: string) => {
       entity_type: 'node',
       bundle: 'transfer',
       title: `Transfert ${new Date().toLocaleDateString()}`,
-      nid: tx.value.id, // Nid for update
+      nid: tx.value.id,
       field_status_process: backendStatus,
       token: authStore.token,
-      status: 1, // Keep published for all statuses
+      status: 1,
     };
 
-    // Include images if submitting
-    // if (newStatus === 'in_process') {
+    // Ajouter la raison d'annulation si fournie
+    if (reason && newStatus === 'cancel_requested') {
+      payload.field_cancel_reason = reason;
+    }
 
     // ---- ARIARY ----
     const existingAriary = Array.isArray(tx.value.proofUrl)
@@ -403,8 +456,7 @@ const updateStatus = async (newStatus: string) => {
       ...newQr
     ];
 
-    payload.status = 1; // Publier
-    // }
+    payload.status = 1;
 
     const response = await fetch(`${API_BASE_URL}/api_solutions/save`, {
       method: 'POST',
@@ -418,9 +470,7 @@ const updateStatus = async (newStatus: string) => {
       const storeTx = transactionStore.transactions.find(t => t.id === tx.value.id);
       if (storeTx) {
         storeTx.status = newStatus as any;
-        // if (newStatus === 'in_process') {
 
-        // ---- ARIARY ----
         const existingAriary = Array.isArray(storeTx.proofUrl)
           ? storeTx.proofUrl
           : [];
@@ -437,7 +487,6 @@ const updateStatus = async (newStatus: string) => {
         ];
 
 
-        // ---- QR CODE ----
         const existingQr = Array.isArray(storeTx.qrCodeUrl)
           ? storeTx.qrCodeUrl
           : [];
@@ -452,11 +501,10 @@ const updateStatus = async (newStatus: string) => {
           ...existingQr,
           ...newQr
         ];
-        // }
         ariaryProofs.value = [];
         qrProofs.value = [];
       }
-      activeTab.value = 'details'; // Go back to details to see the new status
+      activeTab.value = 'details';
     } else {
       alert('Erreur: ' + (data.message || 'Échec de la mise à jour.'));
     }
@@ -1007,6 +1055,109 @@ ion-segment {
   text-align: right;
 }
 
+/* Styles du modal */
+.cancel-reason-modal {
+  --height: auto;
+  --border-radius: 28px;
+  --width: 90%;
+  --max-width: 400px;
+}
+
+.cancel-reason-modal .modal-content {
+  background: white;
+  border-radius: 28px;
+  padding: 20px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modal-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e2a4a;
+  margin: 0;
+}
+
+.modal-header ion-button {
+  --padding-start: 8px;
+  --padding-end: 8px;
+  margin: 0;
+  color: #8892a0;
+}
+
+.modal-body {
+  margin-bottom: 25px;
+}
+
+.form-item {
+  --background: transparent;
+  --padding-start: 0;
+  --inner-padding-end: 0;
+  margin-bottom: 5px;
+}
+
+.form-item ion-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e2a4a;
+  margin-bottom: 8px;
+}
+
+.custom-textarea {
+  --background: #f4f5f8;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  border-radius: 14px;
+  font-size: 14px;
+  border: 1px solid #edf1f7;
+  margin-top: 8px;
+}
+
+.char-count {
+  font-size: 11px;
+  color: #8892a0;
+  text-align: right;
+  margin: 5px 0 0;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+}
+
+.modal-btn {
+  flex: 1;
+  height: 48px;
+  font-weight: 600;
+  font-size: 14px;
+  margin: 0;
+  --border-radius: 14px;
+}
+
+.cancel-btn {
+  --border-color: #edf1f7;
+  --color: #8892a0;
+}
+
+.confirm-btn {
+  --background: #eb445a;
+  --background-hover: #c62e44;
+  color: white;
+}
+
+.confirm-btn:disabled {
+  opacity: 0.5;
+}
+
 @media (prefers-color-scheme: dark) {
   .transaction-detail-content {
     --background: #121212;
@@ -1027,8 +1178,34 @@ ion-segment {
   .info-divider {
     background: #333;
   }
-}
 
+  .cancel-reason-modal .modal-content {
+    background: #1e1e1e;
+  }
+
+  .modal-header h2 {
+    color: white;
+  }
+
+  .form-item ion-label {
+    color: white;
+  }
+
+  .custom-textarea {
+    --background: #2a2a2a;
+    border-color: #333;
+    color: white;
+  }
+
+  .char-count {
+    color: #666;
+  }
+
+  .cancel-btn {
+    --border-color: #333;
+    --color: #8892a0;
+  }
+}
 
 .alt-input-container {
   margin-top: 4px;

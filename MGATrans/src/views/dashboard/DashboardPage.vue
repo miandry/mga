@@ -7,7 +7,7 @@
           <ion-buttons slot="start">
             <ion-menu-button color="primary"></ion-menu-button>
           </ion-buttons>
-          <div class="avatar">JD</div>
+          <div class="avatar">{{ userInitials }}</div>
           <div>
             <h3>Bonjour, {{ authStore.user?.name || 'Client' }}</h3>
             <p>Ravi de vous revoir</p>
@@ -41,40 +41,15 @@
         </div>
 
         <!-- Stats par statut -->
-        <div class="status-stats">
-          <!-- En cours -->
-          <div class="stat-item">
+        <div class="status-stats" v-if="statsByStatus.length > 0">
+          <div v-for="stat in statsByStatus" :key="stat.status" class="stat-item">
             <div class="stat-label">
-              <span class="dot in_process"></span>
-              En cours
+              <span class="dot" :class="stat.status"></span>
+              {{ stat.label }}
             </div>
             <div class="stat-values">
-              <span class="stat-cny">15,750 CNY</span>
-              <span class="stat-mga">2.36M MGA</span>
-            </div>
-          </div>
-
-          <!-- Payé -->
-          <div class="stat-item">
-            <div class="stat-label">
-              <span class="dot payed"></span>
-              Payé
-            </div>
-            <div class="stat-values">
-              <span class="stat-cny">8,420 CNY</span>
-              <span class="stat-mga">1.26M MGA</span>
-            </div>
-          </div>
-
-          <!-- Confirmé -->
-          <div class="stat-item">
-            <div class="stat-label">
-              <span class="dot confirmed"></span>
-              Confirmé
-            </div>
-            <div class="stat-values">
-              <span class="stat-cny">32,500 CNY</span>
-              <span class="stat-mga">4.88M MGA</span>
+              <span class="stat-cny">{{ stat.totalCNY.toLocaleString() }} CNY</span>
+              <span class="stat-mga">≈ {{ stat.totalMGA.toLocaleString() }} MGA</span>
             </div>
           </div>
         </div>
@@ -108,15 +83,14 @@
               <ion-icon :icon="tx.method === 'WeChat' ? chatbubbleEllipses : card"></ion-icon>
             </div>
             <div class="item-info">
-              <p v-if="authStore.hasRole('administrator')" class="payment-method"><span class="username-owner">{{
-                  tx.username }}</span>
-                - Via {{ tx.method }}</p>
+              <p v-if="authStore.hasRole('administrator')" class="payment-method">
+                <span class="username-owner">{{ tx.username }}</span> - Via {{ tx.method }}
+              </p>
               <p v-else class="payment-method">Via {{ tx.method }}</p>
               <h4>{{ tx.amountCNY.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) }} <span>CNY</span></h4>
               <p class="rate">Cours: {{ tx.rate.toLocaleString() }} MGA</p>
             </div>
             <div class="item-amounts">
-              <p class=""></p>
               <p class="mga">≈ {{ tx.amountMGA.toLocaleString() }} MGA</p>
               <div class="status-tag" :class="tx.status">{{ statusLabel(tx.status) }}</div>
             </div>
@@ -133,12 +107,14 @@
         <div v-else-if="loadError" class="empty-state">
           <ion-icon :icon="receiptOutline"></ion-icon>
           <p>{{ loadError }}</p>
+          <ion-button fill="clear" @click="reloadDashboardData">Réessayer</ion-button>
         </div>
 
         <!-- Empty -->
         <div v-else-if="recentTransactions.length === 0" class="empty-state">
           <ion-icon :icon="receiptOutline"></ion-icon>
           <p>Aucune transaction récente</p>
+          <ion-button fill="outline" @click="router.push('/transfer')">Nouveau transfert</ion-button>
         </div>
       </div>
 
@@ -166,7 +142,7 @@ import {
   chatbubbleEllipses,
   card
 } from 'ionicons/icons';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useExchangeStore } from '@/stores/exchange';
@@ -179,12 +155,37 @@ const authStore = useAuthStore();
 const exchangeStore = useExchangeStore();
 const transactionStore = useTransactionStore();
 
+// États
 const recentTransactions = ref<any[]>([]);
 const isLoading = ref(false);
 const loadError = ref('');
-
 const totalCNY = ref(0);
 const totalMGA = ref(0);
+
+// Computed pour les initiales de l'utilisateur
+const userInitials = computed(() => {
+  const name = authStore.user?.name || 'Client';
+  return name.substring(0, 2).toUpperCase();
+});
+
+// Statistiques par statut (à partir des transactions récentes)
+const statsByStatus = computed(() => {
+  const stats = [
+    { status: 'in_process', label: 'En cours', totalCNY: 0, totalMGA: 0 },
+    { status: 'payed', label: 'Payé', totalCNY: 0, totalMGA: 0 },
+    { status: 'confirmed', label: 'Confirmé', totalCNY: 0, totalMGA: 0 }
+  ];
+
+  recentTransactions.value.forEach(tx => {
+    const stat = stats.find(s => s.status === tx.status);
+    if (stat) {
+      stat.totalCNY += tx.amountCNY;
+      stat.totalMGA += tx.amountMGA;
+    }
+  });
+
+  return stats;
+});
 
 /** Helper: pick the right icon per status */
 const txIcon = (status: string) => {
@@ -194,7 +195,7 @@ const txIcon = (status: string) => {
     case 'in_process': return timeOutline;
     case 'request_transfer': return timeOutline;
     case 'canceled': return alertCircleOutline;
-    default: return closeCircle; // draft
+    default: return closeCircle;
   }
 };
 
@@ -214,8 +215,8 @@ const statusLabel = (status: string) => {
 const formatDate = (raw: any): string => {
   if (!raw) return '';
   const d = typeof raw === 'number' || /^\d+$/.test(String(raw))
-    ? new Date(parseInt(String(raw)) * 1000)   // Unix seconds → ms
-    : new Date(raw);                            // ISO string
+    ? new Date(parseInt(String(raw)) * 1000)
+    : new Date(raw);
   if (isNaN(d.getTime())) return String(raw);
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -226,8 +227,6 @@ const formatDate = (raw: any): string => {
 /** Map raw API node to local tx model */
 const mapNode = (node: any) => {
   const rmb = parseFloat(node.field_montant_rmb ?? 0);
-
-  // field_cours_rmb can be: a number, an object {name, title}, or an array [{name}]
   const raw = node.field_cours_rmb;
   let cours = 0;
   if (typeof raw === 'number') {
@@ -240,7 +239,7 @@ const mapNode = (node: any) => {
 
   return {
     id: String(node.nid ?? node.id ?? ''),
-    username: node.uid.name,
+    username: node.uid?.name || 'Inconnu',
     amountMGA: cours > 0 ? Math.round(cours * rmb) : 0,
     amountCNY: rmb,
     rate: cours,
@@ -263,24 +262,20 @@ const mapNode = (node: any) => {
   };
 };
 
-onMounted(async () => {
-  await exchangeStore.init();
-  isLoading.value = true;
-  loadError.value = '';
-
-  // =========================
-  // Fetch Summary
-  // =========================
+// Fonction pour charger le résumé
+const loadSummary = async () => {
   try {
     const summaryResponse = await fetch(
       `${API_BASE_URL}/api/mga/user/summary?token=${authStore.token}`,
       {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
+
+    if (!summaryResponse.ok) {
+      throw new Error(`Erreur HTTP: ${summaryResponse.status}`);
+    }
 
     const summaryData = await summaryResponse.json();
 
@@ -288,34 +283,36 @@ onMounted(async () => {
       totalCNY.value = summaryData.total_rmb;
       totalMGA.value = summaryData.total_mga;
     }
-
   } catch (err: any) {
     console.error('Summary load error:', err);
-    // loadError.value = 'Impossible de charger le résumé.';
+    throw err;
   }
+};
 
-  // =========================
-  // Fetch Recent Transactions
-  // =========================
+// Fonction pour charger les transactions récentes
+const loadRecentTransactions = async () => {
   try {
     let url = '';
     if (authStore.hasRole('administrator')) {
       url = `${API_BASE_URL}/api_solutions/api/v2/node/transfer?sort[val]=created&sort[op]=DESC&offset=5&token=${authStore.token}`;
-    } else if (authStore.hasRole('authenticated_user')) {
-      url = `${API_BASE_URL}/api_solutions/api/v2/node/transfer?sort[val]=created&sort[op]=DESC&offset=5&filters[uid][val]=${authStore.user.id}`;
+    } else if (authStore.hasRole('authenticated_user') && authStore.user?.id) {
+      url = `${API_BASE_URL}/api_solutions/api/v2/node/transfer?sort[val]=created&sort[op]=DESC&offset=5&filters[uid][val]=${authStore.user.id}&token=${authStore.token}`;
+    } else {
+      recentTransactions.value = [];
+      return;
     }
+
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
     }
-    );
 
     const data = await response.json();
-
     const rows = Array.isArray(data) ? data : (data.rows ?? []);
-
     recentTransactions.value = rows.map(mapNode);
 
     // Sync to store for detail page
@@ -326,18 +323,69 @@ onMounted(async () => {
         transactionStore.addTransaction({ ...tx });
       }
     });
-
   } catch (err: any) {
     console.error('Transactions load error:', err);
-    loadError.value = 'Impossible de charger les transactions récentes.';
+    throw err;
+  }
+};
+
+// Fonction principale pour recharger toutes les données
+const reloadDashboardData = async () => {
+  if (!authStore.isAuthenticated) {
+    recentTransactions.value = [];
+    totalCNY.value = 0;
+    totalMGA.value = 0;
+    return;
   }
 
-  isLoading.value = false;
+  isLoading.value = true;
+  loadError.value = '';
+
+  try {
+    // Recharger le taux de change
+    await exchangeStore.init();
+
+    // Charger les données en parallèle
+    await Promise.all([
+      loadSummary(),
+      loadRecentTransactions()
+    ]);
+  } catch (err: any) {
+    console.error('Erreur lors du rechargement:', err);
+    loadError.value = 'Impossible de charger les données. Veuillez réessayer.';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Watcher pour détecter les changements d'utilisateur
+watch(() => authStore.user?.id, (newUserId, oldUserId) => {
+  if (newUserId !== oldUserId) {
+    console.log('Utilisateur changé, rechargement du dashboard...');
+    reloadDashboardData();
+  }
 });
 
+// Watcher pour l'état d'authentification
+watch(() => authStore.isAuthenticated, (isAuthenticated) => {
+  if (!isAuthenticated) {
+    // Si déconnecté, vider les données
+    recentTransactions.value = [];
+    totalCNY.value = 0;
+    totalMGA.value = 0;
+  } else if (isAuthenticated) {
+    // Si connecté, recharger
+    reloadDashboardData();
+  }
+});
+
+onMounted(async () => {
+  await reloadDashboardData();
+});
 </script>
 
 <style scoped>
+/* Vos styles existants */
 .dashboard-content {
   --background: #f8f9fc;
 }
@@ -446,7 +494,6 @@ onMounted(async () => {
   text-align: center;
 }
 
-/* Stats par statut */
 .status-stats {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
@@ -578,7 +625,6 @@ onMounted(async () => {
   cursor: pointer;
 }
 
-/* Transactions List - Style harmonisé avec l'historique */
 .transactions-list {
   padding: 0 20px;
 }
@@ -726,7 +772,10 @@ onMounted(async () => {
   opacity: 0.3;
 }
 
-/* Mode sombre */
+.empty-state ion-button {
+  margin-top: 15px;
+}
+
 @media (prefers-color-scheme: dark) {
   .dashboard-content {
     --background: #121212;
