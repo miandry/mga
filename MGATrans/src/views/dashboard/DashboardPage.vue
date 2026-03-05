@@ -26,7 +26,7 @@
           <h1 class="balance-amount">
             <span v-if="isLoading">...</span>
             <span v-else>{{ totalCNY.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-            }}</span>
+              }}</span>
             <span class="currency-unit">CNY</span>
           </h1>
         </div>
@@ -40,16 +40,36 @@
           <div class="status-chip">Compte actif</div>
         </div>
 
-        <!-- Stats par statut -->
-        <div class="status-stats" v-if="statsByStatus.length > 0">
-          <div v-for="stat in statsByStatus" :key="stat.status" class="stat-item">
+        <!-- Stats par statut depuis le summary - toujours affichés -->
+        <div class="status-stats">
+          <div class="stat-item">
             <div class="stat-label">
-              <span class="dot" :class="stat.status"></span>
-              {{ stat.label }}
+              <span class="dot payed"></span>
+              Payé
             </div>
             <div class="stat-values">
-              <span class="stat-cny">{{ stat.totalCNY.toLocaleString() }} CNY</span>
-              <span class="stat-mga">≈ {{ stat.totalMGA.toLocaleString() }} MGA</span>
+              <span class="stat-cny">{{ totalRmbPayed.toLocaleString() }} CNY</span>
+              <span class="stat-mga">≈ {{ totalMgaPayed.toLocaleString() }} MGA</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">
+              <span class="dot in_process"></span>
+              En cours
+            </div>
+            <div class="stat-values">
+              <span class="stat-cny">{{ totalRmbInProcess.toLocaleString() }} CNY</span>
+              <span class="stat-mga">≈ {{ totalMgaInProcess.toLocaleString() }} MGA</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">
+              <span class="dot confirmed"></span>
+              Confirmé
+            </div>
+            <div class="stat-values">
+              <span class="stat-cny">{{ totalRmbConfirmed.toLocaleString() }} CNY</span>
+              <span class="stat-mga">≈ {{ totalMgaConfirmed.toLocaleString() }} MGA</span>
             </div>
           </div>
         </div>
@@ -162,29 +182,18 @@ const loadError = ref('');
 const totalCNY = ref(0);
 const totalMGA = ref(0);
 
+// Totaux par statut - initialisés à 0
+const totalRmbPayed = ref(0);
+const totalMgaPayed = ref(0);
+const totalRmbInProcess = ref(0);
+const totalMgaInProcess = ref(0);
+const totalRmbConfirmed = ref(0);
+const totalMgaConfirmed = ref(0);
+
 // Computed pour les initiales de l'utilisateur
 const userInitials = computed(() => {
   const name = authStore.user?.name || 'Client';
   return name.substring(0, 2).toUpperCase();
-});
-
-// Statistiques par statut (à partir des transactions récentes)
-const statsByStatus = computed(() => {
-  const stats = [
-    { status: 'in_process', label: 'En cours', totalCNY: 0, totalMGA: 0 },
-    { status: 'payed', label: 'Payé', totalCNY: 0, totalMGA: 0 },
-    { status: 'confirmed', label: 'Confirmé', totalCNY: 0, totalMGA: 0 }
-  ];
-
-  recentTransactions.value.forEach(tx => {
-    const stat = stats.find(s => s.status === tx.status);
-    if (stat) {
-      stat.totalCNY += tx.amountCNY;
-      stat.totalMGA += tx.amountMGA;
-    }
-  });
-
-  return stats;
 });
 
 /** Helper: pick the right icon per status */
@@ -279,10 +288,22 @@ const loadSummary = async () => {
 
     const summaryData = await summaryResponse.json();
 
+    // Mise à jour des totaux généraux
     if (summaryData.total_rmb !== undefined) {
       totalCNY.value = summaryData.total_rmb;
       totalMGA.value = summaryData.total_mga;
     }
+
+    // Mise à jour des totaux par statut (toujours avec une valeur par défaut à 0)
+    totalRmbPayed.value = summaryData.total_rmb_payed ?? 0;
+    totalMgaPayed.value = summaryData.total_mga_payed ?? 0;
+
+    totalRmbInProcess.value = summaryData.total_rmb_in_process ?? 0;
+    totalMgaInProcess.value = summaryData.total_mga_in_process ?? 0;
+
+    totalRmbConfirmed.value = summaryData.total_rmb_confirmed ?? 0;
+    totalMgaConfirmed.value = summaryData.total_mga_confirmed ?? 0;
+
   } catch (err: any) {
     console.error('Summary load error:', err);
     throw err;
@@ -332,9 +353,16 @@ const loadRecentTransactions = async () => {
 // Fonction principale pour recharger toutes les données
 const reloadDashboardData = async () => {
   if (!authStore.isAuthenticated) {
+    // Réinitialiser toutes les valeurs à 0
     recentTransactions.value = [];
     totalCNY.value = 0;
     totalMGA.value = 0;
+    totalRmbPayed.value = 0;
+    totalMgaPayed.value = 0;
+    totalRmbInProcess.value = 0;
+    totalMgaInProcess.value = 0;
+    totalRmbConfirmed.value = 0;
+    totalMgaConfirmed.value = 0;
     return;
   }
 
@@ -373,6 +401,12 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
     recentTransactions.value = [];
     totalCNY.value = 0;
     totalMGA.value = 0;
+    totalRmbPayed.value = 0;
+    totalMgaPayed.value = 0;
+    totalRmbInProcess.value = 0;
+    totalMgaInProcess.value = 0;
+    totalRmbConfirmed.value = 0;
+    totalMgaConfirmed.value = 0;
   } else if (isAuthenticated) {
     // Si connecté, recharger
     reloadDashboardData();
@@ -385,7 +419,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Vos styles existants */
+/* Vos styles existants - inchangés */
 .dashboard-content {
   --background: #f8f9fc;
 }
