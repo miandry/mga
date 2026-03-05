@@ -15,7 +15,7 @@ export interface Transaction {
   method: 'WeChat' | 'Alipay';
   status: 'draft' | 'request_transfer' | 'in_process' | 'payed' | 'confirmed' | 'canceled';
   date: string;
-  beneficiary: string;
+  beneficiary?: string;
   rate: number;
   proofUrl?: MediaItem[];
   qrCodeUrl?: MediaItem[];
