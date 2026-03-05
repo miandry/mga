@@ -20,20 +20,63 @@
 
       <!-- Balance Card -->
       <div class="balance-card">
-        <div class="card-glow"></div>
-        <p class="balance-label">Total transféré (RMB)</p>
-        <h1 class="balance-amount">
-          <span v-if="isLoading">...</span>
-          <span v-else>{{ totalCNY.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        <!-- Total Principal -->
+        <div class="total-main">
+          <p class="balance-label">Total transféré (RMB)</p>
+          <h1 class="balance-amount">
+            <span v-if="isLoading">...</span>
+            <span v-else>{{ totalCNY.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
             }}</span>
-          <span class="currency-unit">CNY</span>
-        </h1>
+            <span class="currency-unit">CNY</span>
+          </h1>
+        </div>
+
+        <!-- Footer avec les infos existantes -->
         <div class="card-footer">
           <div class="exchange-preview">
             <ion-icon :icon="refreshOutline"></ion-icon>
             <span>≈ {{ totalMGA.toLocaleString() }} MGA</span>
           </div>
           <div class="status-chip">Compte actif</div>
+        </div>
+
+        <!-- Stats par statut -->
+        <div class="status-stats">
+          <!-- En cours -->
+          <div class="stat-item">
+            <div class="stat-label">
+              <span class="dot in_process"></span>
+              En cours
+            </div>
+            <div class="stat-values">
+              <span class="stat-cny">15,750 CNY</span>
+              <span class="stat-mga">2.36M MGA</span>
+            </div>
+          </div>
+
+          <!-- Payé -->
+          <div class="stat-item">
+            <div class="stat-label">
+              <span class="dot payed"></span>
+              Payé
+            </div>
+            <div class="stat-values">
+              <span class="stat-cny">8,420 CNY</span>
+              <span class="stat-mga">1.26M MGA</span>
+            </div>
+          </div>
+
+          <!-- Confirmé -->
+          <div class="stat-item">
+            <div class="stat-label">
+              <span class="dot confirmed"></span>
+              Confirmé
+            </div>
+            <div class="stat-values">
+              <span class="stat-cny">32,500 CNY</span>
+              <span class="stat-mga">4.88M MGA</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -58,18 +101,25 @@
       </div>
 
       <div class="transactions-list">
-        <div v-for="tx in recentTransactions" :key="tx.id" class="tx-item"
+        <div v-for="tx in recentTransactions" :key="tx.id" class="history-item"
           @click="router.push('/transaction/' + tx.id)">
-          <div class="tx-icon" :class="tx.status">
-            <ion-icon :icon="txIcon(tx.status)"></ion-icon>
-          </div>
-          <div class="tx-info">
-            <h4>Transfert {{ tx.method }}</h4>
-            <p>{{ tx.date }} • {{ tx.method }}</p>
-          </div>
-          <div class="tx-amount">
-            <p class="mga">{{ tx.amountMGA.toLocaleString() }} MGA</p>
-            <p class="cny">{{ tx.amountCNY }} CNY</p>
+          <div class="item-main">
+            <div class="method-icon" :class="tx.method.toLowerCase()">
+              <ion-icon :icon="tx.method === 'WeChat' ? chatbubbleEllipses : card"></ion-icon>
+            </div>
+            <div class="item-info">
+              <p v-if="authStore.hasRole('administrator')" class="payment-method"><span class="username-owner">{{
+                  tx.username }}</span>
+                - Via {{ tx.method }}</p>
+              <p v-else class="payment-method">Via {{ tx.method }}</p>
+              <h4>{{ tx.amountCNY.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) }} <span>CNY</span></h4>
+              <p class="rate">Cours: {{ tx.rate.toLocaleString() }} MGA</p>
+            </div>
+            <div class="item-amounts">
+              <p class=""></p>
+              <p class="mga">≈ {{ tx.amountMGA.toLocaleString() }} MGA</p>
+              <div class="status-tag" :class="tx.status">{{ statusLabel(tx.status) }}</div>
+            </div>
           </div>
         </div>
 
@@ -112,7 +162,9 @@ import {
   timeOutline,
   closeCircle,
   receiptOutline,
-  alertCircleOutline
+  alertCircleOutline,
+  chatbubbleEllipses,
+  card
 } from 'ionicons/icons';
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
@@ -146,6 +198,18 @@ const txIcon = (status: string) => {
   }
 };
 
+const statusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    draft: 'Brouillon',
+    in_process: 'En cours',
+    payed: 'Payé',
+    confirmed: 'Confirmé',
+    request_transfer: 'Demande',
+    canceled: 'Annulé'
+  };
+  return labels[status] ?? status;
+};
+
 /** Format a Drupal date (Unix timestamp in seconds or ISO string) to DD/MM/YY */
 const formatDate = (raw: any): string => {
   if (!raw) return '';
@@ -176,7 +240,7 @@ const mapNode = (node: any) => {
 
   return {
     id: String(node.nid ?? node.id ?? ''),
-    beneficiary: node.title ?? '—',
+    username: node.uid.name,
     amountMGA: cours > 0 ? Math.round(cours * rmb) : 0,
     amountCNY: rmb,
     rate: cours,
@@ -259,7 +323,7 @@ onMounted(async () => {
       const tx = mapNode(n);
       const exists = transactionStore.transactions.find(t => t.id === tx.id);
       if (!exists) {
-        transactionStore.addTransaction({ ...tx, username: authStore.user?.name });
+        transactionStore.addTransaction({ ...tx });
       }
     });
 
@@ -328,17 +392,6 @@ onMounted(async () => {
   box-shadow: 0 15px 30px rgba(26, 77, 162, 0.3);
 }
 
-.card-glow {
-  position: absolute;
-  top: -50px;
-  right: -50px;
-  width: 150px;
-  height: 150px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  filter: blur(40px);
-}
-
 .balance-label {
   font-size: 14px;
   opacity: 0.8;
@@ -348,7 +401,7 @@ onMounted(async () => {
 .balance-amount {
   font-size: 32px;
   font-weight: 800;
-  margin-bottom: 20px;
+  margin: 0;
 }
 
 .balance-amount span {
@@ -357,10 +410,15 @@ onMounted(async () => {
   opacity: 0.7;
 }
 
+.total-main {
+  margin-bottom: 20px;
+}
+
 .card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin: 20px 0;
 }
 
 .exchange-preview {
@@ -385,6 +443,74 @@ onMounted(async () => {
   padding: 4px 10px;
   border-radius: 20px;
   text-transform: uppercase;
+  text-align: center;
+}
+
+/* Stats par statut */
+.status-stats {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 18px;
+  padding: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.stat-item:last-child {
+  margin-bottom: 0;
+}
+
+.stat-label {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.dot.in_process {
+  background: #ffb259;
+  box-shadow: 0 0 10px #ffb259;
+}
+
+.dot.payed {
+  background: #a259ff;
+  box-shadow: 0 0 10px #a259ff;
+}
+
+.dot.confirmed {
+  background: #2dd36f;
+  box-shadow: 0 0 10px #2dd36f;
+}
+
+.stat-values {
+  text-align: right;
+}
+
+.stat-cny {
+  font-size: 14px;
+  font-weight: 700;
+  display: block;
+  line-height: 1.3;
+}
+
+.stat-mga {
+  font-size: 10px;
+  opacity: 0.7;
+  display: block;
 }
 
 .rate-section {
@@ -449,58 +575,130 @@ onMounted(async () => {
   color: var(--ion-color-primary);
   font-weight: 600;
   text-decoration: none;
+  cursor: pointer;
 }
 
+/* Transactions List - Style harmonisé avec l'historique */
 .transactions-list {
   padding: 0 20px;
 }
 
-.tx-item {
+.history-item {
+  margin-bottom: 20px;
+  cursor: pointer;
+}
+
+.item-main {
   background: white;
-  padding: 15px;
   border-radius: 18px;
+  padding: 15px;
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
   border: 1px solid #edf1f7;
 }
 
-.tx-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
+.method-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 20px;
   margin-right: 15px;
 }
 
-.tx-icon.confirmed {
+.method-icon.wechat {
+  background: #07c160;
+  color: white;
+}
+
+.method-icon.alipay {
+  background: #00a0e9;
+  color: white;
+}
+
+.item-info {
+  flex: 1;
+}
+
+.payment-method {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: #8892a0;
+}
+
+.username-owner {
+  color: var(--ion-color-primary) !important;
+  font-weight: 600;
+}
+
+.item-info h4 {
+  margin: 0 0 2px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e2a4a;
+}
+
+.item-info h4 span {
+  font-size: 10px;
+  color: #8892a0;
+  margin-left: 2px;
+}
+
+.item-info .rate {
+  margin: 0;
+  font-size: 11px;
+  color: #8892a0;
+}
+
+.item-amounts {
+  text-align: right;
+}
+
+.item-amounts .mga {
+  margin: 0 0 5px 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #8892a0;
+}
+
+.status-tag {
+  font-size: 9px;
+  text-transform: uppercase;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 10px;
+  display: inline-block;
+}
+
+.status-tag.confirmed {
   background: rgba(45, 211, 111, 0.12);
   color: #2dd36f;
 }
 
-.tx-icon.payed {
-  background: rgba(112, 26, 211, 0.12);
-  color: #7b2ff7;
-}
-
-.tx-icon.in_process {
+.status-tag.in_process {
   background: rgba(56, 128, 255, 0.12);
   color: #3880ff;
 }
 
-.tx-icon.request_transfer {
+.status-tag.request_transfer {
   background: rgba(255, 196, 9, 0.12);
   color: #e0a800;
 }
 
-.tx-icon.draft {
+.status-tag.payed {
+  background: rgba(112, 26, 211, 0.12);
+  color: #7b2ff7;
+}
+
+.status-tag.draft {
   background: rgba(136, 146, 160, 0.15);
   color: #8892a0;
 }
 
-.tx-icon.canceled {
+.status-tag.canceled {
   background: rgba(235, 68, 90, 0.12);
   color: #eb445a;
 }
@@ -516,44 +714,6 @@ onMounted(async () => {
   margin-bottom: 8px;
 }
 
-.tx-icon ion-icon {
-  font-size: 22px;
-}
-
-.tx-info {
-  flex: 1;
-}
-
-.tx-info h4 {
-  margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #1e2a4a;
-}
-
-.tx-info p {
-  margin: 0;
-  font-size: 12px;
-  color: #8892a0;
-}
-
-.tx-amount {
-  text-align: right;
-}
-
-.tx-amount .mga {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 700;
-  color: #1e2a4a;
-}
-
-.tx-amount .cny {
-  margin: 0;
-  font-size: 12px;
-  color: #8892a0;
-}
-
 .empty-state {
   text-align: center;
   padding: 40px 0;
@@ -566,6 +726,7 @@ onMounted(async () => {
   opacity: 0.3;
 }
 
+/* Mode sombre */
 @media (prefers-color-scheme: dark) {
   .dashboard-content {
     --background: #121212;
@@ -575,15 +736,26 @@ onMounted(async () => {
     color: white;
   }
 
-  .rate-card,
-  .tx-item {
+  .rate-card {
     background: #1e1e1e;
     border-color: #2a2a2a;
   }
 
-  .tx-info h4,
-  .tx-amount .mga,
+  .rate-info h3,
   .section-header h2 {
+    color: white;
+  }
+
+  .item-main {
+    background: #1e1e1e;
+    border-color: #2a2a2a;
+  }
+
+  .item-info h4 {
+    color: white;
+  }
+
+  .user-info h3 {
     color: white;
   }
 }

@@ -141,7 +141,7 @@
                   </div>
                   <!-- Nouveau champ texte alternatif -->
                   <div class="alt-input-container">
-                    <input type="text" v-model="img.alt" placeholder="Ex: MM2401... " class="alt-input" />
+                    <ion-input v-model="img.alt" placeholder="Ex: MM2401..." class="alt-input" mode="ios"></ion-input>
                   </div>
                 </div>
               </div>
@@ -175,7 +175,7 @@
                   </div>
                   <!-- Nouveau champ texte alternatif -->
                   <div class="alt-input-container">
-                    <input type="text" v-model="img.alt" placeholder="Ex: 3000 ..." class="alt-input" />
+                    <ion-input v-model="img.alt" placeholder="Ex: 3000..." class="alt-input" mode="ios"></ion-input>
                   </div>
                 </div>
               </div>
@@ -558,11 +558,11 @@ const totalQrCount = computed(() => {
 
 // Déterminer si on peut encore uploader
 const canUploadAriary = computed(() => {
-  return totalAriaryCount.value < maxUploads;
+  return totalAriaryCount.value < maxUploads && tx.value.status === 'draft';
 });
 
 const canUploadQr = computed(() => {
-  return totalQrCount.value < maxUploads;
+  return totalQrCount.value < maxUploads && tx.value.status === 'draft';
 });
 
 const handleShare = () => {
@@ -1026,6 +1026,49 @@ ion-segment {
 
   .info-divider {
     background: #333;
+  }
+}
+
+
+.alt-input-container {
+  margin-top: 4px;
+  width: 100%;
+}
+
+.alt-input-container ion-input {
+  --padding-start: 0;
+  --padding-end: 0;
+  --inner-padding-start: 0;
+  --inner-padding-end: 0;
+  --border-width: 0;
+  --border-color: transparent;
+  --highlight-height: 0;
+  min-height: 24px;
+  height: 24px;
+}
+
+.alt-input-container ion-input .native-input {
+  padding: 2px 4px !important;
+  font-size: 10px !important;
+  border: 1px solid #ccc !important;
+  border-radius: 4px !important;
+  background: white;
+  height: 20px !important;
+  min-height: 20px !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Pour le mode sombre */
+@media (prefers-color-scheme: dark) {
+  .alt-input-container ion-input .native-input {
+    border-color: #444 !important;
+    background: #1e1e1e;
+    color: white;
+  }
+
+  .alt-input-container ion-input .native-input::placeholder {
+    color: #666 !important;
   }
 }
 </style>

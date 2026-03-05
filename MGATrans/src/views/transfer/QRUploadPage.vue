@@ -374,6 +374,7 @@ ion-header ion-toolbar {
   --border-radius: 10px;
   font-size: 14px;
   font-weight: 500;
+  color: #1e2a4a;
 }
 
 .add-qr-box {

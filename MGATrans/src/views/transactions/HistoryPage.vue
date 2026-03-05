@@ -23,7 +23,7 @@
           <ion-segment-button value="payed">
             <ion-label>Payé</ion-label>
           </ion-segment-button>
-          <ion-segment-button value="draft">
+          <ion-segment-button value="draft" v-if="!authStore.hasRole('administrator')">
             <ion-label>Brouillon</ion-label>
           </ion-segment-button>
           <ion-segment-button value="confirmed">
@@ -82,8 +82,11 @@
                 <ion-icon :icon="tx.method === 'WeChat' ? chatbubbleEllipses : card"></ion-icon>
               </div>
               <div class="item-info">
-                <p class="payment-method"><span class="username-owner">{{ tx.username }}</span> - Via {{ tx.method }}
+                
+                <p v-if="authStore.hasRole('administrator')" class="payment-method">
+                  <span class="username-owner">{{ tx.username }}</span> - Via {{ tx.method }}
                 </p>
+                <p v-else class="payment-method">Via {{ tx.method }}</p>
                 <h4>{{ tx.amountCNY.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) }} <span>CNY</span></h4>
                 <p class="rate">Cours: {{ tx.rate.toLocaleString() }} MGA</p>
               </div>
