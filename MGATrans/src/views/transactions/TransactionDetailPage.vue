@@ -45,7 +45,7 @@
             <div class="info-row amount-row">
               <div>
                 <p class="label">Motif du demande d'annulation</p>
-                <p>{{ tx.reason }}</p>
+                <p>{{ tx.reason }} {{ tx.status }}</p>
               </div>
             </div>
           </div>
@@ -656,7 +656,7 @@ const handleShare = () => {
 };
 </script>
 
-<style>
+<style scoped>
 .transaction-detail-content {
   --background: #f8f9fc;
 }
