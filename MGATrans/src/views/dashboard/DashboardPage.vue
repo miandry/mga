@@ -203,6 +203,7 @@ const txIcon = (status: string) => {
     case 'payed': return checkmarkCircle;
     case 'in_process': return timeOutline;
     case 'request_transfer': return timeOutline;
+    case 'cancel_requested': return alertCircleOutline;
     case 'canceled': return alertCircleOutline;
     default: return closeCircle;
   }
@@ -215,7 +216,8 @@ const statusLabel = (status: string) => {
     payed: 'Payé',
     confirmed: 'Confirmé',
     request_transfer: 'Demande',
-    canceled: 'Annulé'
+    cancel_requested: 'Demande d\'annulation',
+    canceled: 'Annulé',
   };
   return labels[status] ?? status;
 };
@@ -258,6 +260,7 @@ const mapNode = (node: any) => {
         node.field_status_process === 'canceled' ? 'canceled' :
           node.field_status_process) as any,
     date: formatDate(node.created ?? node.changed),
+    reason: node.field_cancel_reason ?? '',
     proofUrl: (node.field_image_ariary || []).map((img: any) => ({
       id: String(img.id ?? img.target_id ?? ''),
       url: img.url,
@@ -778,7 +781,7 @@ onMounted(async () => {
   color: #8892a0;
 }
 
-.status-tag.canceled {
+.status-tag.canceled, .status-tag.cancel_requested {
   background: rgba(235, 68, 90, 0.12);
   color: #eb445a;
 }

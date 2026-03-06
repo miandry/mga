@@ -44,6 +44,15 @@
           <div class="info-card main-info">
             <div class="info-row amount-row">
               <div>
+                <p class="label">Motif du demande d'annulation</p>
+                <p>{{ tx.reason }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="info-card main-info">
+            <div class="info-row amount-row">
+              <div>
                 <p class="label">Montant envoyé</p>
                 <h3>{{ tx.amountMGA.toLocaleString() }} <span>MGA</span></h3>
               </div>
@@ -221,6 +230,14 @@
             </ion-button>
           </div>
 
+          <div v-if="tx.status === 'cancel_requested' && authStore.hasRole('administrator')" class="dual-action-row">
+            <ion-button expand="block" mode="ios" class="main-action-btn" :disabled="isUpdating"
+              @click="updateStatus('canceled')">
+              <ion-spinner v-if="isUpdating" name="crescent"></ion-spinner>
+              <span v-else>Accepter</span>
+            </ion-button>
+          </div>
+
           <!-- Authenticated User: Request Cancel avec modal -->
           <ion-button
             v-if="tx.status === 'in_process' && authStore.hasRole('authenticated_user') && !authStore.hasRole('administrator')"
@@ -267,8 +284,8 @@
         <div class="modal-body">
           <ion-item lines="none" class="form-item">
             <ion-label position="stacked">Pourquoi vous souhaitez annuler ce transfert</ion-label>
-            <ion-textarea v-model="cancelReason" placeholder="Ex: Erreur de montant..."
-              :rows="5" :maxlength="500" counter="true" class="custom-textarea" auto-grow>
+            <ion-textarea v-model="cancelReason" placeholder="Ex: Erreur de montant..." :rows="5" :maxlength="500"
+              counter="true" class="custom-textarea" auto-grow>
             </ion-textarea>
           </ion-item>
           <p class="char-count">{{ cancelReason.length }}/500</p>
@@ -387,13 +404,30 @@ const closeCancelModal = () => {
 const submitCancelRequest = async () => {
   if (!cancelReason.value.trim()) return;
 
-  // Ici vous pouvez ajouter la logique pour envoyer la raison avec la demande d'annulation
-  // Par exemple, l'ajouter au payload
-  await updateStatus('cancel_requested', cancelReason.value);
+  // raison d'annulation 
+  try {
+    await fetch(`${API_BASE_URL}/api_solutions/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entity_type: 'node',
+        bundle: 'cancellation_request',
+        title: `Demande d'annulation pour le transfert #${tx.value.id}`,
+        field_reason: cancelReason.value.trim(), // Ajouter la raison dans le payload
+        field_transaction: tx.value.id,
+        token: authStore.token,
+        status: 1,
+      }),
+    });
+    await updateStatus('cancel_requested', cancelReason.value.trim());
+  } catch (error) {
+    console.error('Erreur lors de la soumission de la demande d\'annulation:', error);
+    alert('Erreur lors de l\'envoi de la demande d\'annulation. Veuillez réessayer.');
+  }
   closeCancelModal();
 };
 
-const updateStatus = async (newStatus: string, reason: string = '') => {
+const updateStatus = async (newStatus: string, reason?: string) => {
   if (!tx.value) return;
   isUpdating.value = true;
 
@@ -410,8 +444,8 @@ const updateStatus = async (newStatus: string, reason: string = '') => {
       status: 1,
     };
 
-    // Ajouter la raison d'annulation si fournie
-    if (reason && newStatus === 'cancel_requested') {
+    // Ajouter seulement si reason existe
+    if (reason && reason.trim() !== '') { 
       payload.field_cancel_reason = reason;
     }
 
@@ -503,6 +537,10 @@ const updateStatus = async (newStatus: string, reason: string = '') => {
         ];
         ariaryProofs.value = [];
         qrProofs.value = [];
+
+        if (reason  && reason.trim() !== '') {
+          storeTx.reason = reason;
+        }
       }
       activeTab.value = 'details';
     } else {

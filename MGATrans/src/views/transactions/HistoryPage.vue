@@ -35,6 +35,9 @@
           <ion-segment-button value="confirmed">
             <ion-label>Confirmé</ion-label>
           </ion-segment-button>
+          <ion-segment-button value="cancel_requested">
+            <ion-label>Demande annulation</ion-label>
+          </ion-segment-button>
           <ion-segment-button value="canceled">
             <ion-label>Annulé</ion-label>
           </ion-segment-button>
@@ -205,6 +208,7 @@ const mapNode = (node: any): Transaction => {
         node.field_status_process === 'canceled' ? 'canceled' :
           node.field_status_process) as Transaction['status'],
     date: formatDate(node.created ?? node.changed),
+    reason: node.field_cancel_reason ?? '',
     proofUrl: (node.field_image_ariary || []).map((img: any) => ({
       id: String(img.id ?? img.target_id ?? ''),
       url: img.url,
@@ -361,7 +365,6 @@ const statusLabel = (status: string) => {
 // Watchers
 watch(() => authStore.user?.id, (newUserId, oldUserId) => {
   if (newUserId !== oldUserId) {
-    console.log('Utilisateur changé dans historique, rechargement...');
     reloadTransactions();
   }
 });
@@ -589,7 +592,7 @@ ion-segment-button {
   color: #8892a0;
 }
 
-.status-tag.canceled {
+.status-tag.canceled, .status-tag.cancel_requested {
   background: rgba(235, 68, 90, 0.12);
   color: #eb445a;
 }

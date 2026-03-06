@@ -13,9 +13,10 @@ export interface Transaction {
   amountMGA: number;
   amountCNY: number;
   method: 'WeChat' | 'Alipay';
-  status: 'draft' | 'request_transfer' | 'in_process' | 'payed' | 'confirmed' | 'canceled';
+  status: 'draft' | 'request_transfer' | 'in_process' | 'payed' | 'confirmed' | 'cancel_requested' | 'canceled';
   date: string;
   beneficiary?: string;
+  reason?: string;
   rate: number;
   proofUrl?: MediaItem[];
   qrCodeUrl?: MediaItem[];
