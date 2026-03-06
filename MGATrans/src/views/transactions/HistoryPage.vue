@@ -357,7 +357,8 @@ const statusLabel = (status: string) => {
     payed: 'Payé',
     confirmed: 'Confirmé',
     request_transfer: 'Demande',
-    canceled: 'Annulé'
+    canceled: 'Annulé',
+    cancel_requested: 'Demande annulation'
   };
   return labels[status] ?? status;
 };

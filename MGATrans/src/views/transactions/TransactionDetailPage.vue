@@ -114,10 +114,10 @@
           </div>
 
           <!-- Help Button -->
-          <ion-button expand="block" fill="clear" color="medium" class="support-btn">
+          <!-- <ion-button expand="block" fill="clear" color="medium" class="support-btn">
             <ion-icon slot="start" :icon="helpCircleOutline"></ion-icon>
             Besoin d'aide avec ce transfert ?
-          </ion-button>
+          </ion-button> -->
         </div>
 
         <!-- Proofs Tab -->
