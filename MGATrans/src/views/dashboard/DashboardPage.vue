@@ -421,7 +421,7 @@ onMounted(async () => {
 });
 </script>
 
-<style scoped>
+<style>
 /* Vos styles existants - inchangés */
 .dashboard-content {
   --background: #f8f9fc;

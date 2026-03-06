@@ -41,10 +41,10 @@
         <div v-if="activeTab === 'details'">
 
           <!-- Transfer Card -->
-          <div class="info-card main-info" v-if="tx.status === 'cancel_requested' || tx.status === 'canceled'">
+          <div class="info-card main-info" v-if="tx.status == 'cancel_requested' || tx.status == 'canceled'">
             <div class="info-row amount-row">
               <div>
-                <p class="label">Motif du demande d'annulation</p>
+                <p class="label">Motif du demande d'annulation mainnnn</p>
                 <p>{{ tx.reason }} {{ tx.status }}</p>
               </div>
             </div>
@@ -656,7 +656,7 @@ const handleShare = () => {
 };
 </script>
 
-<style scoped>
+<style>
 .transaction-detail-content {
   --background: #f8f9fc;
 }
