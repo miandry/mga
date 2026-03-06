@@ -45,7 +45,7 @@
             <div class="info-row amount-row">
               <div>
                 <p class="label">Motif du demande d'annulation</p>
-                <p>{{ tx.reason }} {{ tx.status }}</p>
+                <p>{{ tx.reason }}</p>
               </div>
             </div>
           </div>
