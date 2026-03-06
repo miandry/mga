@@ -656,7 +656,7 @@ const handleShare = () => {
 };
 </script>
 
-<style scoped>
+<style>
 .transaction-detail-content {
   --background: #f8f9fc;
 }
