@@ -41,14 +41,14 @@
         <div v-if="activeTab === 'details'">
 
           <!-- Transfer Card -->
-          <!-- <div class="info-card main-info" v-if="tx.status == 'cancel_requested' || tx.status == 'canceled'">
+          <div class="info-card main-info" v-if="tx.status == 'cancel_requested' || tx.status == 'canceled'">
             <div class="info-row amount-row">
               <div>
                 <p class="label">Motif du demande d'annulation</p>
                 <p>{{ tx.reason }} {{ tx.status }}</p>
               </div>
             </div>
-          </div> -->
+          </div>
 
           <div class="info-card main-info">
             <div class="info-row amount-row">
