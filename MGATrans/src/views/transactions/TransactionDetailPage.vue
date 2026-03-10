@@ -41,14 +41,16 @@
         <div v-if="activeTab === 'details'">
 
           <!-- Transfer Card -->
-          <!-- <div class="info-card main-info" v-show="tx.status == 'cancel_requested' || tx.status == 'canceled'">
-            <div class="info-row amount-row">
+
+          <!-- Cancellation Reason Block -->
+          <div v-if="tx.status === 'cancel_requested' || tx.status === 'canceled'" class="info-card">
+            <div class="info-row">
               <div>
                 <p class="label">Motif du demande d'annulation</p>
-                <p>{{ tx.reason }}</p>
+                <p class="value">{{ tx.reason }}</p>
               </div>
             </div>
-          </div> -->
+          </div>
 
           <div class="info-card main-info">
             <div class="info-row amount-row">
@@ -445,7 +447,7 @@ const updateStatus = async (newStatus: string, reason?: string) => {
     };
 
     // Ajouter seulement si reason existe
-    if (reason && reason.trim() !== '') { 
+    if (reason && reason.trim() !== '') {
       payload.field_cancel_reason = reason;
     }
 
@@ -538,7 +540,7 @@ const updateStatus = async (newStatus: string, reason?: string) => {
         ariaryProofs.value = [];
         qrProofs.value = [];
 
-        if (reason  && reason.trim() !== '') {
+        if (reason && reason.trim() !== '') {
           storeTx.reason = reason;
         }
       }
