@@ -416,6 +416,17 @@ watch(() => authStore.isAuthenticated, (isAuthenticated) => {
   }
 });
 
+// Watcher pour recharger le dashboard quand le store change (add, modification status, etc)
+watch(
+  () => transactionStore.transactions,
+  () => {
+    if (authStore.isAuthenticated) {
+      reloadDashboardData();
+    }
+  },
+  { deep: true }
+);
+
 onMounted(async () => {
   await reloadDashboardData();
 });
